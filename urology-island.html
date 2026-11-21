@@ -189,17 +189,43 @@ for(let k=0;k<4;k++){const a=angTo(k,k+1),b=angTo(k+1,k);const A0=C[k].clone().a
   const po=k<2?1.45:.8;[A0,B0].forEach(p=>[-po,po].forEach(o=>{const q=p.clone().addScaledVector(N,o);const post=new THREE.Group();post.position.set(q.x,TOP,q.z);scene.add(post);for(let i=0;i<5;i++)mesh(new THREE.CylinderGeometry(.11,.11,.28,10),M(i%2?0xffffff:0xc8323c),0,.14+i*.28,0,post);}));
 }
 const updaters=[],twinkles=[],smokes=[],legs=[],spinners=[];
-/* reindeer builder (used by sleigh and bladder island) */
+/* limb helper: a tapered cylinder from point a to point b */
+function limb(parent,a,b,ra,rb,mat,shadow=true){const d=b.clone().sub(a),m=mesh(new THREE.CylinderGeometry(rb,ra,d.length(),12),mat,0,0,0,parent,shadow);m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(V(0,1,0),d.normalize());return m;}
+function blob(parent,mat,x,y,z,r,sx,sy,sz,seg=16){const m=mesh(new THREE.SphereGeometry(r,seg,Math.max(8,seg*.75|0)),mat,x,y,z,parent);m.scale.set(sx||1,sy||1,sz||1);return m;}
+/* reindeer builder (used by sleigh and bladder island): forward is +z */
+const furMat=M(0x8a5a32,{roughness:.85}),furDark=M(0x5e3b1f,{roughness:.9}),furLight=M(0xeadcc4,{roughness:.9}),antMat=M(0xdcc79c,{roughness:.6}),hoofMat=M(0x2a1a10,{roughness:.5});
+function antler(parent,sd){const pts=[V(sd*.06,.12,-.02),V(sd*.16,.34,-.06),V(sd*.3,.52,-.16),V(sd*.36,.7,-.3),V(sd*.32,.86,-.42)];const c=new THREE.CatmullRomCurve3(pts);
+  mesh(new THREE.TubeGeometry(c,24,.032,6,false),antMat,0,0,0,parent,false);
+  [[.35,.18,.05],[.6,.2,.12],[.82,.16,.02]].forEach(([u,len,fw])=>{const a=c.getPointAt(u),b=a.clone().add(V(sd*.04,len,fw+.06));limb(parent,a,b,.026,.012,antMat,false);});}
 function reindeer(parent,x,y,z,rudolph,animate){
-  const g=new THREE.Group();g.position.set(x,y,z);parent.add(g);const fur=M(0x8b5a2b,{roughness:.9});
-  const b=mesh(new THREE.SphereGeometry(.4,16,12),fur,0,0,0,g);b.scale.set(.75,.72,1.4);
-  const nk=mesh(new THREE.CylinderGeometry(.12,.16,.5,8),fur,0,.32,.45,g);nk.rotation.x=.6;
-  mesh(new THREE.SphereGeometry(.22,14,10),fur,0,.58,.65,g);mesh(new THREE.SphereGeometry(.13,12,8),M(0xa4744a),0,.52,.86,g);
-  const nose=mesh(new THREE.SphereGeometry(rudolph?.1:.06,12,8),rudolph?new THREE.MeshStandardMaterial({color:0xff2a2a,emissive:0xff1010,emissiveIntensity:1.6}):M(0x111111),0,.55,.98,g,false);
-  if(rudolph){const pl=new THREE.PointLight(0xff3030,1.3,7);pl.position.set(0,.55,1.2);g.add(pl);const gl=new THREE.Sprite(new THREE.SpriteMaterial({map:DOT,color:0xff4040,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));gl.scale.set(.9,.9,1);gl.position.copy(nose.position);g.add(gl);twinkles.push({glow:gl});}
-  const ant=M(0xe8d3a8);[-1,1].forEach(s=>{const a=mesh(new THREE.CylinderGeometry(.025,.03,.45,6),ant,s*.12,.85,.6,g,false);a.rotation.z=-s*.5;const t=mesh(new THREE.CylinderGeometry(.02,.02,.22,6),ant,s*.24,.95,.66,g,false);t.rotation.z=s*.6;const e=mesh(new THREE.ConeGeometry(.06,.14,6),fur,s*.18,.7,.55,g,false);e.rotation.z=-s*1.2;});
-  mesh(new THREE.SphereGeometry(.08,8,6),snowMat,0,.12,-.55,g,false);
-  [[-.17,.35],[.17,.35],[-.17,-.35],[.17,-.35]].forEach(([lx,lz],i)=>{const p=new THREE.Group();p.position.set(lx,-.12,lz);g.add(p);mesh(new THREE.CylinderGeometry(.05,.04,.6,6),fur,0,-.3,0,p,false);mesh(new THREE.SphereGeometry(.05,6,5),M(0x2a1a10),0,-.6,0,p,false);if(animate)legs.push({p,ph:(i%2?Math.PI:0)+(lz>0?0:Math.PI/2)+z});});
+  const g=new THREE.Group();g.position.set(x,y,z);parent.add(g);const body=new THREE.Group();g.add(body);
+  blob(body,furMat,0,0,0,.4,.95,.95,2.05);blob(body,furMat,0,.03,-.46,.37,1.02,1,1);blob(body,furMat,0,.02,.44,.36,1,1.05,1);
+  blob(body,furLight,0,-.12,.6,.22,1.1,1.2,.7);blob(body,furLight,0,-.25,0,.3,.8,.35,1.6);
+  /* neck and head */
+  const neck=limb(body,V(0,.18,.55),V(0,.62,.86),.2,.12,furMat);
+  blob(body,furLight,0,.38,.78,.11,1.1,2.1,.7);
+  const head=new THREE.Group();head.position.set(0,.7,.92);body.add(head);
+  blob(head,furMat,0,0,0,.17,1,.95,1.15);blob(head,furMat,0,-.06,.2,.11,.95,.85,1.7);blob(head,furDark,0,-.08,.34,.085,1,.8,.8);
+  const nose=blob(head,rudolph?new THREE.MeshStandardMaterial({color:0xff2a2a,emissive:0xff1010,emissiveIntensity:1.7,roughness:.3}):M(0x1a0f08,{roughness:.3}),0,-.05,.41,rudolph?.075:.05);
+  [-1,1].forEach(sd=>{blob(head,M(0x120a05,{roughness:.2}),sd*.1,.05,.1,.035);blob(head,M(0xffffff),sd*.108,.065,.125,.01);
+    const ear=mesh(new THREE.ConeGeometry(.055,.2,8),furMat,sd*.15,.12,-.04,head);ear.scale.z=.45;ear.rotation.z=-sd*1.05;ear.rotation.x=-.3;
+    antler(head,sd);});
+  if(rudolph){const pl=new THREE.PointLight(0xff3030,1.3,7);pl.position.set(0,-.05,.6);head.add(pl);const gl=new THREE.Sprite(new THREE.SpriteMaterial({map:DOT,color:0xff4040,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));gl.scale.set(.8,.8,1);gl.position.copy(nose.position);head.add(gl);twinkles.push({glow:gl});}
+  /* harness: collar with bells + girth strap */
+  const collar=mesh(new THREE.TorusGeometry(.19,.045,8,24),M(0xb3202a,{roughness:.5}),0,.3,.66,body,false);collar.rotation.x=Math.PI/2-.75;
+  for(let i=0;i<5;i++){const a=-Math.PI/2+(i-2)*.45;blob(body,M(0xf2c14e,{metalness:.7,roughness:.3}),Math.sin(a)*.2,.3+Math.cos(a)*-.08-.08,.66+Math.cos(a)*.12+.08,.04,1,1,1,10);}
+  const girth=mesh(new THREE.TorusGeometry(.41,.035,8,28),M(0xb3202a,{roughness:.5}),0,0,.15,body,false);girth.scale.set(.98,1,1);
+  blob(body,furLight,0,.13,-.86,.09,1,1.3,.8);
+  /* legs: hip → thigh → knee → shin → hoof */
+  const legSet=[];[[-1,1],[1,1],[-1,-1],[1,-1]].forEach(([sd,fr],i)=>{
+    const hip=new THREE.Group();hip.position.set(sd*.2,-.12,fr>0?.46:-.48);body.add(hip);
+    const th=limb(hip,V(0,.05,0),V(0,-.4,fr>0?.02:-.04),fr>0?.1:.13,.065,furMat);
+    const knee=new THREE.Group();knee.position.set(0,-.4,fr>0?.02:-.04);hip.add(knee);
+    limb(knee,V(0,0,0),V(0,-.38,0),.055,.04,furDark,false);blob(knee,furLight,0,-.3,0,.05,1,1.3,1,8);
+    mesh(new THREE.CylinderGeometry(.045,.055,.08,10),hoofMat,0,-.41,.01,knee,false);
+    legSet.push({hip,knee,front:fr>0,sd});});
+  g.userData={body,head,legSet,ph:Math.random()*6};
+  if(animate)legs.push(g);
   return g;
 }
 function sign(parent,x,z,text,color){const g=new THREE.Group();g.position.set(x,TOP,z);parent.add(g);mesh(new THREE.CylinderGeometry(.06,.06,1.4,8),M(0x6b4a33),0,.7,0,g);label(text,parent,x,TOP+2.0,z,.5,color);return g;}
@@ -284,7 +310,7 @@ function sign(parent,x,z,text,color){const g=new THREE.Group();g.position.set(x,
   tube([V(0,.66,0),P(aout,2.6,.66),loc(2,BR[2].A[0])],.22,g,4,.18);
   label('膀胱 · 逼尿肌 · 容量 400 mL',g,0,5.55,0,.55,'#f2c14e');
   /* reindeer statue at the lakeside, Rudolph-style */
-  const rp=P(away,4.6,TOP+1.25);const rd=reindeer(g,rp.x,rp.y,rp.z,true,false);rd.scale.setScalar(1.6);rd.rotation.y=-away-Math.PI/2+Math.PI;
+  const rp=P(away,4.6,TOP+1.5);const rd=reindeer(g,rp.x,rp.y,rp.z,true,false);rd.scale.setScalar(1.6);rd.rotation.y=-away-Math.PI/2+Math.PI;
   /* a few skating snowmen dots: little ice skater */
   label('紅鼻麋鹿報到處',g,rp.x,4.2,rp.z,.48,'#e0505a');
 })();
@@ -341,18 +367,70 @@ scene.add(new THREE.Points(wfGeo,new THREE.PointsMaterial({size:.3,map:DOT,color
 
 /* ---------- Sleigh ---------- */
 const sleigh=new THREE.Group();scene.add(sleigh);
-const gold=M(0xf2c14e,{metalness:.6,roughness:.35});
+const gold=M(0xf2c14e,{metalness:.65,roughness:.3});
+let santa=null;
 (function(){
-  mesh(new THREE.BoxGeometry(1.15,.5,1.6),M(0xc0392b,{roughness:.45}),0,.38,0,sleigh);mesh(new THREE.BoxGeometry(1.15,.75,.2),M(0xc0392b,{roughness:.45}),0,.8,-.72,sleigh);mesh(new THREE.BoxGeometry(1.2,.08,1.65),gold,0,.66,0,sleigh,false);
-  [-.47,.47].forEach(x=>{mesh(new THREE.BoxGeometry(.07,.07,2.0),gold,x,0,.05,sleigh,false);const c=mesh(new THREE.TorusGeometry(.22,.035,8,16,Math.PI),gold,x,.22,1.05,sleigh,false);c.rotation.y=Math.PI/2;c.rotation.z=-Math.PI/2;});
-  mesh(new THREE.SphereGeometry(.4,18,14),M(0xd0262f,{roughness:.6}),0,.95,-.2,sleigh);const belt=mesh(new THREE.TorusGeometry(.37,.06,8,24),M(0x1a1a1a),0,.9,-.2,sleigh,false);belt.rotation.x=Math.PI/2;
-  mesh(new THREE.SphereGeometry(.21,16,12),M(0xffd2b4),0,1.42,-.15,sleigh);const beard=mesh(new THREE.SphereGeometry(.2,14,10),snowMat,0,1.3,0,sleigh,false);beard.scale.set(1,1.15,.7);
-  mesh(new THREE.SphereGeometry(.05,8,6),M(0xff8f8f),0,1.42,.06,sleigh,false);mesh(new THREE.ConeGeometry(.2,.45,16),M(0xd0262f),0,1.75,-.18,sleigh);
-  const hb=mesh(new THREE.TorusGeometry(.2,.06,8,20),snowMat,0,1.55,-.16,sleigh,false);hb.rotation.x=Math.PI/2;mesh(new THREE.SphereGeometry(.08,10,8),snowMat,0,1.99,-.2,sleigh,false);
-  [-1,1].forEach(s=>{const arm=mesh(new THREE.CylinderGeometry(.09,.09,.6,8),M(0xd0262f),s*.38,1.05,.12,sleigh);arm.rotation.x=1.1;arm.rotation.z=s*.3;mesh(new THREE.SphereGeometry(.1,8,6),M(0x1a1a1a),s*.4,.98,.38,sleigh,false);});
-  mesh(new THREE.SphereGeometry(.38,14,10),M(0x7b5230,{roughness:.95}),.32,.95,-.5,sleigh);mesh(new THREE.BoxGeometry(.22,.22,.22),M(0x2f8f5b),.3,1.32,-.5,sleigh);mesh(new THREE.BoxGeometry(.18,.18,.18),M(0xf2c14e),.5,1.25,-.38,sleigh);
-  [[-.38,2.1],[.38,2.1],[-.38,3.4],[.38,3.4],[0,4.7]].forEach(([x,z],i)=>{reindeer(sleigh,x,.75,z,i===4,true);sleigh.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([V(0,.6,.85),V(x,.85,z+.3)]),new THREE.LineBasicMaterial({color:0xf2c14e})));});
-  sleigh.scale.setScalar(1.25);
+  /* sleigh body: curved side profile extruded across the width */
+  const sh=new THREE.Shape();sh.moveTo(-.85,.12);sh.lineTo(.62,.12);sh.quadraticCurveTo(1.02,.16,1.0,.52);sh.quadraticCurveTo(.98,.86,.72,.82);sh.quadraticCurveTo(.58,.8,.55,.62);
+  sh.lineTo(-.45,.6);sh.quadraticCurveTo(-.6,.62,-.66,1.0);sh.quadraticCurveTo(-.72,1.3,-.92,1.22);sh.quadraticCurveTo(-1.02,1.18,-.98,.9);sh.lineTo(-.92,.3);sh.quadraticCurveTo(-.92,.12,-.85,.12);
+  const W=1.15,bg=new THREE.ExtrudeGeometry(sh,{depth:W,bevelEnabled:true,bevelSize:.04,bevelThickness:.04,bevelSegments:3,curveSegments:16});bg.rotateY(-Math.PI/2);bg.translate(W/2,0,0);
+  mesh(bg,M(0xb8202c,{roughness:.35,metalness:.1}),0,0,0,sleigh);
+  /* gold trim along both side edges */
+  const tp=sh.getPoints(40).map(q=>V(0,q.y,q.x));[-W/2-.05,W/2+.05].forEach(x=>{const c=new THREE.CatmullRomCurve3(tp.map(q=>q.clone().setX(x)),true);mesh(new THREE.TubeGeometry(c,120,.03,6,true),gold,0,0,0,sleigh,false);});
+  /* seat cushion */
+  mesh(new THREE.BoxGeometry(1.0,.12,.55),M(0x1f6b3a,{roughness:.8}),0,.66,-.48,sleigh);
+  /* runners with front curls and struts */
+  [-.5,.5].forEach(x=>{const c=new THREE.CatmullRomCurve3([V(x,.02,-1.05),V(x,-.12,-.9),V(x,-.14,.3),V(x,-.1,.95),V(x,.08,1.3),V(x,.38,1.38),V(x,.5,1.22),V(x,.4,1.08)]);
+    mesh(new THREE.TubeGeometry(c,60,.045,8,false),gold,0,0,0,sleigh,false);[-.6,.1,.75].forEach(z=>limb(sleigh,V(x,-.12,z),V(x,.14,z),.03,.03,gold,false));});
+  /* gift sack behind the seat */
+  const sk=new THREE.LatheGeometry([[0,0],[.3,.02],[.42,.2],[.44,.45],[.36,.66],[.18,.74],[.12,.8],[.16,.88],[0,.9]].map(([r,y])=>new THREE.Vector2(r,y)),24);
+  const sack=mesh(sk,M(0x7b5230,{roughness:.95}),.05,.62,-.72,sleigh);sack.rotation.x=-.25;
+  mesh(new THREE.BoxGeometry(.24,.24,.24),M(0x2f8f5b),-.05,1.4,-.86,sleigh).rotation.y=.5;mesh(new THREE.BoxGeometry(.2,.2,.2),M(0xf2c14e),.2,1.35,-.74,sleigh).rotation.y=-.4;
+  /* ---- Santa (seated, facing +z) ---- */
+  const S=new THREE.Group();S.position.set(0,.66,-.2);sleigh.add(S);santa=S;
+  const red=M(0xc41e2a,{roughness:.6}),fur=M(0xfafafa,{roughness:1}),skin=M(0xffcfb0,{roughness:.7}),blk=M(0x1a1a1a,{roughness:.4});
+  const coat=new THREE.LatheGeometry([[.001,0],[.4,0],[.42,.08],[.39,.3],[.34,.5],[.3,.6],[.2,.68],[.001,.7]].map(([r,y])=>new THREE.Vector2(r,y)),28);
+  const torso=new THREE.Group();S.add(torso);mesh(coat,red,0,0,0,torso);
+  const hem=mesh(new THREE.TorusGeometry(.405,.055,8,28),fur,0,.04,0,torso);hem.rotation.x=Math.PI/2;
+  mesh(new THREE.BoxGeometry(.11,.5,.06),fur,0,.3,.33,torso).rotation.x=-.17;
+  const belt=mesh(new THREE.TorusGeometry(.39,.045,8,28),blk,0,.22,0,torso,false);belt.rotation.x=Math.PI/2;
+  mesh(new THREE.BoxGeometry(.16,.12,.04),gold,0,.22,.4,torso,false);mesh(new THREE.BoxGeometry(.09,.06,.05),blk,0,.22,.405,torso,false);
+  [.12,.38,.5].forEach(y=>blob(torso,M(0x111111),0,y,.36-(y-.12)*.12,.022,1,1,.5,8));
+  /* legs (seated): thighs forward, shins down, boots */
+  [-1,1].forEach(sd=>{limb(S,V(sd*.15,.06,.05),V(sd*.16,.08,.48),.13,.11,red);limb(S,V(sd*.16,.08,.48),V(sd*.16,-.3,.56),.1,.09,red);
+    const cuff=mesh(new THREE.TorusGeometry(.1,.04,8,18),fur,sd*.16,-.26,.56,S,false);cuff.rotation.x=Math.PI/2;
+    blob(S,blk,sd*.16,-.38,.64,.1,1,.75,1.6);});
+  /* head */
+  const H=new THREE.Group();H.position.set(0,.88,.02);torso.add(H);
+  blob(H,skin,0,0,0,.19,1,1.05,1);
+  blob(H,M(0xff9e9e,{roughness:.8}),-.1,-.03,.13,.045,1,.8,.6);blob(H,M(0xff9e9e,{roughness:.8}),.1,-.03,.13,.045,1,.8,.6);
+  blob(H,M(0xffa585,{roughness:.6}),0,-.01,.19,.045);
+  [-1,1].forEach(sd=>{blob(H,blk,sd*.065,.05,.165,.022);mesh(new THREE.TorusGeometry(.04,.008,6,16),gold,sd*.065,.05,.18,H,false);
+    const brow=blob(H,fur,sd*.07,.1,.165,.04,1.3,.5,.6);brow.rotation.z=sd*.25;
+    const mu=blob(H,fur,sd*.07,-.06,.17,.06,1.5,.65,.8);mu.rotation.z=-sd*.35;});
+  limb(H,V(-.035,.05,.188),V(.035,.05,.188),.006,.006,gold,false);
+  /* beard: fluffy cluster */
+  [[0,-.16,.1,.14],[-.1,-.12,.08,.1],[.1,-.12,.08,.1],[0,-.27,.07,.1],[-.07,-.22,.06,.09],[.07,-.22,.06,.09],[0,-.36,.04,.07]].forEach(([x,y,z,r])=>blob(H,fur,x,y,z,r,1,1,.85,12));
+  blob(H,fur,0,.02,-.07,.19,1.06,1,.95);
+  /* hat: tapered drooping cone + brim + pompom */
+  const hp=[V(0,.12,0),V(0,.28,-.02),V(0,.42,-.08),V(0,.52,-.2),V(0,.5,-.34)];const hc=new THREE.CatmullRomCurve3(hp);
+  for(let i=0;i<10;i++){const u0=i/10,u1=(i+1)/10;limb(H,hc.getPointAt(u0),hc.getPointAt(u1),.19*(1-u0)+.03,.19*(1-u1)+.03,red,false);}
+  const brim=mesh(new THREE.TorusGeometry(.19,.06,10,28),fur,0,.13,0,H,false);brim.rotation.x=Math.PI/2;
+  const pom=blob(H,fur,0,.47,-.37,.075,1,1,1,12);
+  /* arms reach forward to the reins */
+  const hands=[];[-1,1].forEach(sd=>{const sh_=V(sd*.31,.56,0),el=V(sd*.38,.34,.24),hd=V(sd*.2,.38,.52);
+    blob(torso,red,sh_.x,sh_.y,sh_.z,.11);limb(torso,sh_,el,.1,.085,red);limb(torso,el,hd,.085,.075,red);
+    const cf=mesh(new THREE.TorusGeometry(.08,.03,8,16),fur,0,0,0,torso,false);cf.position.copy(el.clone().lerp(hd,.82));cf.lookAt(hd.clone().add(hd.clone().sub(el)));
+    blob(torso,M(0x1f6b3a,{roughness:.7}),hd.x,hd.y,hd.z+.04,.075,1,.9,1.2);hands.push(hd);});
+  S.userData={torso,H,pom,hands};
+  /* reindeer team */
+  const team=[[-.42,2.3,0],[.42,2.3,0],[-.42,3.95,0],[.42,3.95,0],[0,5.6,1]];
+  team.forEach(([x,z,rud],i)=>{const d=reindeer(sleigh,x,.85,z,!!rud,true);d.userData.ph=i*.7;
+    /* traces from collar back to the sleigh front, plus reins to Santa's hands */
+    const lm=new THREE.LineBasicMaterial({color:0xf2c14e});
+    sleigh.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([V(x*.6,.55,1.05),V(x,.85+.3,z+.62)]),lm));
+    sleigh.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([V(x>0?.2:-.2,.66+.38,-.2+.56),V(x,.85+.3,z+.6)]),new THREE.LineBasicMaterial({color:0x7a1a20})));});
+  sleigh.scale.setScalar(1.2);
 })();
 const TR=360,trPos=new Float32Array(TR*3),trCol=new Float32Array(TR*3),trLife=new Float32Array(TR);let trI=0;
 const trGeo=new THREE.BufferGeometry();trGeo.setAttribute('position',new THREE.BufferAttribute(trPos,3));trGeo.setAttribute('color',new THREE.BufferAttribute(trCol,3));
@@ -366,7 +444,7 @@ const crossAng=k=>k===4?angTo(4,3):Math.atan2(C[k].z,C[k].x)+Math.PI/2;
 const tan=th=>V(-Math.sin(th),0,Math.cos(th));
 const orbitPt=(j,th)=>C[j].clone().add(V(Math.cos(th)*ORB_R,ORB_H,Math.sin(th)*ORB_R));
 const TAU=Math.PI*2,mod=a=>((a%TAU)+TAU)%TAU;
-let tour,lastDir=V(1,0,0);
+let tour,lastDir=V(1,0,0);const carrot=V(0,0,0);
 function orbitSeg(j,th0,sw){return {dur:sw/OMEGA,bank:true,at:u=>{const th=th0+sw*u,p=orbitPt(j,th);p.y+=Math.sin(th*3)*.3;return p;}};}
 function crossSeg(j,th){const c=C[j],H=CROSS_H[j],t=tan(th),r=a=>V(Math.cos(a),0,Math.sin(a));
   const P0=orbitPt(j,th),P3=orbitPt(j,th+Math.PI);
@@ -376,17 +454,31 @@ function startVisit(j,th){const ca=crossAng(j);
   let best=null;[ca,ca+Math.PI].forEach(c=>{let sw=mod(c-th);if(sw<.5*Math.PI)sw+=TAU;if(best===null||sw<best)best=sw;});
   const thc=th+best,te=angTo(j,(j+1)%5);let sw2=mod(te-(thc+Math.PI));if(sw2<.3*Math.PI)sw2+=TAU;
   tour={mode:'visit',j,si:0,t:0,segs:[orbitSeg(j,th,best),crossSeg(j,thc),orbitSeg(j,thc+Math.PI,sw2)]};curIsland=j;showGreet(j);}
-function startTravel(j){const P0=sleigh.position.clone(),c=C[j];const th=Math.atan2(P0.z-c.z,P0.x-c.x);const P3=orbitPt(j,th);const L=P0.distanceTo(P3)*.42;
-  tour={mode:'travel',j,t:0,dur:Math.max(2.4,P0.distanceTo(P3)/9),P0,P1:P0.clone().addScaledVector(lastDir,L),P2:P3.clone().addScaledVector(tan(th),-L),P3,th};curIsland=j;markChip(j);hideGreet();}
+function startTravel(j){const P0=carrot.clone(),c=C[j];const th=Math.atan2(P0.z-c.z,P0.x-c.x);const P3=orbitPt(j,th);const L=P0.distanceTo(P3)*.42;
+  const cv=new THREE.CubicBezierCurve3(P0,P0.clone().addScaledVector(lastDir,L),P3.clone().addScaledVector(tan(th),-L),P3);
+  tour={mode:'travel',j,s:0,len:cv.getLength(),cv,th};curIsland=j;markChip(j);hideGreet();}
 flyTo=j=>startTravel(j);
 function bez(a,b,c,d,u){const v=1-u;return a.clone().multiplyScalar(v*v*v).addScaledVector(b,3*v*v*u).addScaledVector(c,3*v*u*u).addScaledVector(d,u*u*u);}
-sleigh.position.copy(orbitPt(0,Math.atan2(C[0].z,C[0].x)-.8));startVisit(0,Math.atan2(C[0].z,C[0].x)-.8);
-function tourStep(dt){tour.t+=dt;let p,bank=false;
-  if(tour.mode==='visit'){let sg=tour.segs[tour.si];if(tour.t>=sg.dur){tour.t-=sg.dur;tour.si++;if(tour.si>=tour.segs.length){startTravel((tour.j+1)%5);return;}sg=tour.segs[tour.si];}
-    p=sg.at(Math.min(1,tour.t/sg.dur));bank=!!sg.bank;}
-  else{const u=Math.min(1,tour.t/tour.dur);p=bez(tour.P0,tour.P1,tour.P2,tour.P3,u);p.y+=Math.sin(u*Math.PI)*3.5;if(u>=1){startVisit(tour.j,tour.th);}}
-  const d=p.clone().sub(sleigh.position);if(d.lengthSq()>1e-6){lastDir=V(d.x,0,d.z).normalize();sleigh.lookAt(p.clone().add(d));}
-  sleigh.position.copy(p);if(bank)sleigh.rotateZ(.2);}
+carrot.copy(orbitPt(0,Math.atan2(C[0].z,C[0].x)-.8));startVisit(0,Math.atan2(C[0].z,C[0].x)-.8);
+const CRUISE=ORB_R*OMEGA,TRAVEL_MAX=10;
+function tourStep(dt){let p;
+  if(tour.mode==='visit'){tour.t+=dt;let sg=tour.segs[tour.si];if(tour.t>=sg.dur){tour.t-=sg.dur;tour.si++;if(tour.si>=tour.segs.length){startTravel((tour.j+1)%5);return;}sg=tour.segs[tour.si];}
+    p=sg.at(Math.min(1,tour.t/sg.dur));}
+  else{const v=CRUISE+(TRAVEL_MAX-CRUISE)*Math.sin(Math.PI*Math.min(1,tour.s/tour.len));tour.s+=v*dt;const u=Math.min(1,tour.s/tour.len);
+    p=tour.cv.getPointAt(u);p.y+=Math.sin(u*Math.PI)*3.5;if(u>=1){startVisit(tour.j,tour.th);}}
+  const d=V(p.x-carrot.x,0,p.z-carrot.z);if(d.lengthSq()>1e-8)lastDir=d.normalize();carrot.copy(p);}
+/* the sleigh chases the carrot with a critically damped spring, turns by slerp, and banks with yaw rate */
+const mv={pos:carrot.clone(),vel:lastDir.clone().multiplyScalar(CRUISE),fwd:lastDir.clone(),bank:0,pitch:0};
+const mTmp=new THREE.Matrix4(),qTmp=new THREE.Quaternion(),ORIGIN=V(0,0,0),UP=V(0,1,0),zAx=V(0,0,1);
+function drive(dt){const w=2.4;
+  const acc=carrot.clone().sub(mv.pos).multiplyScalar(w*w).addScaledVector(mv.vel,-2*w);mv.vel.addScaledVector(acc,dt);mv.pos.addScaledVector(mv.vel,dt);
+  sleigh.position.copy(mv.pos);
+  if(mv.vel.lengthSq()>.04){const f=mv.vel.clone().normalize(),prev=mv.fwd.clone();
+    const hz=V(f.x,0,f.z).normalize();mv.fwd.lerp(hz,1-Math.exp(-dt*3)).normalize();
+    const yaw=(prev.x*mv.fwd.z-prev.z*mv.fwd.x)/Math.max(dt,1e-3);
+    mv.bank+=(THREE.MathUtils.clamp(yaw*.5,-.5,.5)-mv.bank)*(1-Math.exp(-dt*2.5));
+    mv.pitch+=(THREE.MathUtils.clamp(-f.y*.8,-.35,.35)-mv.pitch)*(1-Math.exp(-dt*2.5));}
+  mTmp.lookAt(mv.fwd,ORIGIN,UP);sleigh.quaternion.setFromRotationMatrix(mTmp);sleigh.rotateX(mv.pitch);sleigh.rotateZ(mv.bank);}
 
 /* ---------- Camera: follow island or whole archipelago ---------- */
 function resize(){const w=window.innerWidth,h=window.innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
@@ -426,8 +518,11 @@ function animate(){
   spinners.forEach(s=>s.rotation.y=T*.8);updaters.forEach(f=>f(T,dt));
   garlands.forEach((g,i)=>g.emissiveIntensity=i===curIsland?1.2+Math.sin(T*5)*.6:.35);
   nameTags.forEach((n,i)=>{const b=n.userData.base||(n.userData.base=n.scale.clone());const k=i===curIsland?1.15+Math.sin(T*3)*.05:1;n.scale.set(b.x*k,b.y*k,1);});
-  tourStep(dt);controls.autoRotate=userSpin;
-  legs.forEach(l=>{l.p.rotation.x=Math.sin(T*9+l.ph)*.7;});
+  tourStep(dt);drive(dt);controls.autoRotate=userSpin;
+  legs.forEach(d=>{const u=d.userData,ph=T*7.5+u.ph;u.body.position.y=Math.sin(ph*2)*.04;u.body.rotation.x=Math.sin(ph)*.06;u.head.rotation.x=Math.sin(ph+1)*.12;
+    u.legSet.forEach(l=>{const q=ph+(l.front?0:Math.PI*.9)+(l.sd>0?.25:0);if(l.front){l.hip.rotation.x=-.25+Math.sin(q)*.75;l.knee.rotation.x=Math.max(0,Math.sin(q+1.4))*1.5;}
+      else{l.hip.rotation.x=.25+Math.sin(q)*.7;l.knee.rotation.x=-Math.max(0,Math.sin(q-1.2))*1.3;}});});
+  if(santa){const u=santa.userData;u.torso.rotation.z=-mv.bank*.35;u.torso.rotation.x=Math.sin(T*2.2)*.04;u.H.rotation.y=Math.sin(T*.7)*.25;u.H.rotation.z=Math.sin(T*1.3)*.05;u.pom.position.x=Math.sin(T*3)*.03;}
   for(let q=0;q<3;q++){tmp.set((Math.random()-.5)*.8,.1+Math.random()*.3,-1.1);sleigh.localToWorld(tmp);const i=trI;trI=(trI+1)%TR;trPos[i*3]=tmp.x;trPos[i*3+1]=tmp.y;trPos[i*3+2]=tmp.z;trLife[i]=1;const c=palette[(Math.random()*4)|0];trCol[i*3]=c[0];trCol[i*3+1]=c[1];trCol[i*3+2]=c[2];}
   for(let i=0;i<TR;i++){if(trLife[i]<=0)continue;const f=Math.max(0,trLife[i]-dt*.5),r=f/trLife[i];trLife[i]=f;trCol[i*3]*=r;trCol[i*3+1]*=r;trCol[i*3+2]*=r;trPos[i*3+1]-=dt*.4;}
   trGeo.attributes.position.needsUpdate=true;trGeo.attributes.color.needsUpdate=true;
