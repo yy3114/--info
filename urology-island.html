@@ -165,7 +165,7 @@ ISL.forEach((s,k)=>{
   const gm=new THREE.MeshStandardMaterial({color:s.hex,emissive:s.hex,emissiveIntensity:.6});
   for(let i=0;i<40;i++){const an=i/40*Math.PI*2;mesh(new THREE.SphereGeometry(.1,8,6),gm,Math.cos(an)*(IR-.05),.62,Math.sin(an)*(IR-.05),g,false);}
   garlands.push(gm);
-  nameTags.push(label(s.name,g,0,8.2,0,1.25,s.color,true));
+  nameTags.push(label(s.name,g,0,10.2,0,1.25,s.color,true));
 });
 /* pines near the outer rim */
 function pines(k,angles){angles.forEach(d=>{const a=Math.atan2(C[k].z,C[k].x)+d*Math.PI/180,r=IR-1.1,t=new THREE.Group();t.position.copy(P(a,r,TOP));const s=.5+Math.random()*.25;t.scale.setScalar(s);groups[k].add(t);
@@ -282,7 +282,7 @@ function sign(parent,x,z,text,color){const g=new THREE.Group();g.position.set(x,
   [-.75,.75].forEach(sd=>{const E=loc(2,BR[1].B[sd]);let df=Math.atan2(E.z,E.x)-ain;df=Math.atan2(Math.sin(df),Math.cos(df));const ea=ain+Math.sign(df)*.55;
     const en=P(ea,1.6,TOP+1.15),via=E.clone().lerp(en,.55);via.y=.9;tube([E,via,en],.2,g,4,.16);});
   tube([V(0,.66,0),P(aout,2.6,.66),loc(2,BR[2].A[0])],.22,g,4,.18);
-  label('膀胱 · 逼尿肌 · 容量 400 mL',g,0,5.9,0,.55,'#f2c14e');
+  label('膀胱 · 逼尿肌 · 容量 400 mL',g,0,5.55,0,.55,'#f2c14e');
   /* reindeer statue at the lakeside, Rudolph-style */
   const rp=P(away,4.6,TOP+1.25);const rd=reindeer(g,rp.x,rp.y,rp.z,true,false);rd.scale.setScalar(1.6);rd.rotation.y=-away-Math.PI/2+Math.PI;
   /* a few skating snowmen dots: little ice skater */
@@ -319,7 +319,7 @@ let wfOrigin,wfDir;
   const arch=new THREE.Group();arch.rotation.y=-aout+Math.PI/2;g.add(arch);
   const ar=mesh(new THREE.TorusGeometry(1.3,.26,14,40),M(0xd98c8c,{roughness:.55}),0,TOP+.2,0,arch);
   for(let i=0;i<12;i++){const a=i/12*Math.PI*2;const mm=new THREE.MeshStandardMaterial({color:0x4fd08a,emissive:0x4fd08a,emissiveIntensity:1});twinkles.push({m:mm,i:i+40});mesh(new THREE.SphereGeometry(.1,8,6),mm,Math.cos(a)*1.3,TOP+.2+Math.sin(a)*1.3,0,arch,false);}
-  label('尿道水管 · 括約肌拱門',g,0,3.2,0,.5,'#4fd08a');
+  label('尿道水管 · 括約肌拱門',g,0,2.85,0,.5,'#4fd08a');
   /* gift pile */
   const gp=new THREE.Group();gp.position.copy(P(side,3.2,TOP));g.add(gp);
   [[0,0,0xc8323c,0xf2c14e,.8],[.9,.3,0x2f8f5b,0xf3f7ff,.6],[-.7,.5,0x3a6fd8,0xf2c14e,.55],[.2,-.8,0xf2c14e,0xc8323c,.65],[.1,.1,0xb48cff,0xffffff,.45,.8]].forEach(([x,z,c,rb,s,y])=>{const b=new THREE.Group();b.position.set(x,(y||0)+s/2,z);b.rotation.y=Math.random();gp.add(b);mesh(new THREE.BoxGeometry(s,s,s),M(c,{roughness:.5}),0,0,0,b);mesh(new THREE.BoxGeometry(s*1.02,s*1.02,s*.16),M(rb),0,0,0,b,false);mesh(new THREE.BoxGeometry(s*.16,s*1.02,s*1.02),M(rb),0,0,0,b,false);});
@@ -359,30 +359,42 @@ const trGeo=new THREE.BufferGeometry();trGeo.setAttribute('position',new THREE.B
 scene.add(new THREE.Points(trGeo,new THREE.PointsMaterial({size:.4,map:DOT,vertexColors:true,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending})));
 const palette=[[1,.85,.4],[1,.5,.5],[.6,.9,1],[1,1,1]];
 
-/* ---------- Tour: orbit each island, then fly to the next ---------- */
-const ORB_R=9.5,ORB_H=5.5,OMEGA=.62;
+/* ---------- Tour: low orbit just outside the rim, a low pass straight over the organ, then on to the next island ---------- */
+const ORB_R=8.3,ORB_H=4.2,OMEGA=.58,CROSS_SPD=4.2;
+const CROSS_H=[7.2,3.4,6.9,7.4,3.5];
+const crossAng=k=>k===4?angTo(4,3):Math.atan2(C[k].z,C[k].x)+Math.PI/2;
 const tan=th=>V(-Math.sin(th),0,Math.cos(th));
 const orbitPt=(j,th)=>C[j].clone().add(V(Math.cos(th)*ORB_R,ORB_H,Math.sin(th)*ORB_R));
+const TAU=Math.PI*2,mod=a=>((a%TAU)+TAU)%TAU;
 let tour,lastDir=V(1,0,0);
-function startOrbit(j,th){const nx=(j+1)%5,te=angTo(j,nx);let sw=((te-th)%(Math.PI*2)+Math.PI*2)%(Math.PI*2);if(sw<Math.PI)sw+=Math.PI*2;tour={mode:'orbit',j,t:0,dur:sw/OMEGA,th0:th,sw};curIsland=j;showGreet(j);}
+function orbitSeg(j,th0,sw){return {dur:sw/OMEGA,bank:true,at:u=>{const th=th0+sw*u,p=orbitPt(j,th);p.y+=Math.sin(th*3)*.3;return p;}};}
+function crossSeg(j,th){const c=C[j],H=CROSS_H[j],t=tan(th),r=a=>V(Math.cos(a),0,Math.sin(a));
+  const P0=orbitPt(j,th),P3=orbitPt(j,th+Math.PI);
+  const pts=[P0,P0.clone().addScaledVector(t,2).setY(ORB_H+.3),c.clone().addScaledVector(r(th),3.6).setY(H),c.clone().setY(H),c.clone().addScaledVector(r(th+Math.PI),3.6).setY(H),P3.clone().addScaledVector(t,2).setY(ORB_H+.3),P3];
+  const cv=new THREE.CatmullRomCurve3(pts);return {dur:cv.getLength()/CROSS_SPD,at:u=>cv.getPointAt(u)};}
+function startVisit(j,th){const ca=crossAng(j);
+  let best=null;[ca,ca+Math.PI].forEach(c=>{let sw=mod(c-th);if(sw<.5*Math.PI)sw+=TAU;if(best===null||sw<best)best=sw;});
+  const thc=th+best,te=angTo(j,(j+1)%5);let sw2=mod(te-(thc+Math.PI));if(sw2<.3*Math.PI)sw2+=TAU;
+  tour={mode:'visit',j,si:0,t:0,segs:[orbitSeg(j,th,best),crossSeg(j,thc),orbitSeg(j,thc+Math.PI,sw2)]};curIsland=j;showGreet(j);}
 function startTravel(j){const P0=sleigh.position.clone(),c=C[j];const th=Math.atan2(P0.z-c.z,P0.x-c.x);const P3=orbitPt(j,th);const L=P0.distanceTo(P3)*.42;
   tour={mode:'travel',j,t:0,dur:Math.max(2.4,P0.distanceTo(P3)/9),P0,P1:P0.clone().addScaledVector(lastDir,L),P2:P3.clone().addScaledVector(tan(th),-L),P3,th};curIsland=j;markChip(j);hideGreet();}
 flyTo=j=>startTravel(j);
 function bez(a,b,c,d,u){const v=1-u;return a.clone().multiplyScalar(v*v*v).addScaledVector(b,3*v*v*u).addScaledVector(c,3*v*u*u).addScaledVector(d,u*u*u);}
-sleigh.position.copy(orbitPt(0,Math.atan2(C[0].z,C[0].x)-.8));startOrbit(0,Math.atan2(C[0].z,C[0].x)-.8);
-function tourStep(dt){tour.t+=dt;const u=Math.min(1,tour.t/tour.dur);let p;
-  if(tour.mode==='orbit'){const th=tour.th0+tour.sw*u;p=orbitPt(tour.j,th);p.y+=Math.sin(th*3)*.8;if(u>=1)startTravel((tour.j+1)%5);}
-  else{p=bez(tour.P0,tour.P1,tour.P2,tour.P3,u);p.y+=Math.sin(u*Math.PI)*3.5;if(u>=1){startOrbit(tour.j,tour.th);}}
+sleigh.position.copy(orbitPt(0,Math.atan2(C[0].z,C[0].x)-.8));startVisit(0,Math.atan2(C[0].z,C[0].x)-.8);
+function tourStep(dt){tour.t+=dt;let p,bank=false;
+  if(tour.mode==='visit'){let sg=tour.segs[tour.si];if(tour.t>=sg.dur){tour.t-=sg.dur;tour.si++;if(tour.si>=tour.segs.length){startTravel((tour.j+1)%5);return;}sg=tour.segs[tour.si];}
+    p=sg.at(Math.min(1,tour.t/sg.dur));bank=!!sg.bank;}
+  else{const u=Math.min(1,tour.t/tour.dur);p=bez(tour.P0,tour.P1,tour.P2,tour.P3,u);p.y+=Math.sin(u*Math.PI)*3.5;if(u>=1){startVisit(tour.j,tour.th);}}
   const d=p.clone().sub(sleigh.position);if(d.lengthSq()>1e-6){lastDir=V(d.x,0,d.z).normalize();sleigh.lookAt(p.clone().add(d));}
-  sleigh.position.copy(p);sleigh.rotateZ(tour.mode==='orbit'?.22:0);}
+  sleigh.position.copy(p);if(bank)sleigh.rotateZ(.2);}
 
 /* ---------- Camera: follow island or whole archipelago ---------- */
 function resize(){const w=window.innerWidth,h=window.innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
 resize();window.addEventListener('resize',resize);
 const asp=()=>window.innerWidth/window.innerHeight;
-const followDist=()=>asp()<1?Math.min(62,27/asp()*.95):32, overviewDist=()=>asp()<1?Math.min(135,60/asp()*.95):74;
+const followDist=()=>asp()<1?Math.min(50,22/asp()*.95):26, overviewDist=()=>asp()<1?Math.min(135,60/asp()*.95):74;
 let overview=false,zoomGoal=null;const goal=V(0,1.5,0);
-controls.target.copy(C[0]).setY(3);camera.position.copy(controls.target).add(V(0,.5,1).normalize().multiplyScalar(followDist()));
+controls.target.copy(C[0]).setY(2.6);camera.position.copy(controls.target).add(V(0,.5,1).normalize().multiplyScalar(followDist()));
 const btnView=document.getElementById('btnView');
 btnView.onclick=()=>{overview=!overview;btnView.setAttribute('aria-pressed',String(overview));btnView.textContent=overview?'跟隨聖誕老人':'看全景';zoomGoal=overview?overviewDist():followDist();};
 let userSpin=!reduce;const btnSpin=document.getElementById('btnSpin');const spinTxt=()=>{btnSpin.setAttribute('aria-pressed',String(userSpin));btnSpin.textContent=userSpin?'暫停旋轉':'開始旋轉';};spinTxt();
@@ -420,7 +432,7 @@ function animate(){
   for(let i=0;i<TR;i++){if(trLife[i]<=0)continue;const f=Math.max(0,trLife[i]-dt*.5),r=f/trLife[i];trLife[i]=f;trCol[i*3]*=r;trCol[i*3+1]*=r;trCol[i*3+2]*=r;trPos[i*3+1]-=dt*.4;}
   trGeo.attributes.position.needsUpdate=true;trGeo.attributes.color.needsUpdate=true;
   /* camera target easing */
-  if(overview)goal.set(0,0,2);else goal.copy(C[curIsland]).setY(3);
+  if(overview)goal.set(0,0,2);else goal.copy(C[curIsland]).setY(2.6);
   prevT.copy(controls.target);controls.target.lerp(goal,Math.min(1,dt*1.6));camera.position.add(tmp.copy(controls.target).sub(prevT));
   if(zoomGoal!==null){const off=camera.position.clone().sub(controls.target);const d=off.length(),nd=d+(zoomGoal-d)*Math.min(1,dt*2.5);camera.position.copy(controls.target).add(off.setLength(nd));if(Math.abs(zoomGoal-nd)<.3)zoomGoal=null;}
   controls.update();renderer.render(scene,camera);requestAnimationFrame(animate);
