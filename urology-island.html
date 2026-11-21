@@ -100,7 +100,7 @@ button:focus-visible,.greet:focus-visible{outline:2px solid var(--gold);outline-
   <div class="ctrls">
     <button id="btnView" aria-pressed="false">看全景</button>
     <button id="btnSpin" aria-pressed="true">暫停旋轉</button>
-    <button id="btnMusic" aria-pressed="false">播放鈴聲</button>
+    <button id="btnMusic" aria-pressed="false">播放聖誕歌</button>
     <button id="btnGift" class="gift">🎁 撒禮物</button>
   </div>
   <div class="hint">點島名讓聖誕老人飛過去 · 拖曳旋轉 · 雙指縮放</div>
@@ -614,17 +614,30 @@ btnView.onclick=()=>{overview=!overview;btnView.setAttribute('aria-pressed',Stri
 let userSpin=!reduce;const btnSpin=document.getElementById('btnSpin');const spinTxt=()=>{btnSpin.setAttribute('aria-pressed',String(userSpin));btnSpin.textContent=userSpin?'暫停旋轉':'開始旋轉';};spinTxt();
 btnSpin.onclick=()=>{userSpin=!userSpin;spinTxt();};
 
-/* ---------- Jingle Bells (synth) ---------- */
+/* ---------- Christmas songs (synth): three public-domain melodies, played in random order ---------- */
 const btnMusic=document.getElementById('btnMusic');
-const F={C:523.25,D:587.33,E:659.25,F:698.46,G:783.99};
-const A=[['E',1],['E',1],['E',2],['E',1],['E',1],['E',2],['E',1],['G',1],['C',1.5],['D',.5],['E',4]];
-const SONG=A.concat([['F',1],['F',1],['F',1.5],['F',.5],['F',1],['E',1],['E',1],['E',.5],['E',.5],['E',1],['D',1],['D',1],['E',1],['D',2],['G',2]],A,[['F',1],['F',1],['F',1],['F',1],['F',1],['E',1],['E',1],['E',.5],['E',.5],['G',1],['G',1],['F',1],['D',1],['C',4],['C',0]]);
-const BEAT=.27;let actx=null,mOn=false,nextT=0,si=0,mTimer=null;
+const NT={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+const hz=n=>{const m=12*(+n[n.length-1]+1)+NT[n[0]]+(n[1]==='#'?1:n[1]==='b'?-1:0);return 440*Math.pow(2,(m-69)/12);};
+const seq=str=>str.trim().split(/\s+/).map(x=>{const [n,d]=x.split(':');return [n,+d];});
+const JB_A='E5:1 E5:1 E5:2 E5:1 E5:1 E5:2 E5:1 G5:1 C5:1.5 D5:.5 E5:4';
+const SONGS=[
+  {name:'鈴兒響叮噹',beat:.27,bell:true,type:'triangle',notes:seq(JB_A+' F5:1 F5:1 F5:1.5 F5:.5 F5:1 E5:1 E5:1 E5:.5 E5:.5 E5:1 D5:1 D5:1 E5:1 D5:2 G5:2 '+JB_A+' F5:1 F5:1 F5:1 F5:1 F5:1 E5:1 E5:1 E5:.5 E5:.5 G5:1 G5:1 F5:1 D5:1 C5:4')},
+  {name:'祝你聖誕快樂',beat:.3,bell:false,type:'triangle',notes:seq('G4:1 C5:1 C5:.5 D5:.5 C5:.5 B4:.5 A4:1 A4:1 A4:1 D5:1 D5:.5 E5:.5 D5:.5 C5:.5 B4:1 G4:1 G4:1 E5:1 E5:.5 F5:.5 E5:.5 D5:.5 C5:1 A4:1 G4:.5 G4:.5 A4:1 D5:1 B4:1 C5:2 R:1 '+
+    'G4:1 C5:1 C5:.5 D5:.5 C5:.5 B4:.5 A4:1 A4:1 A4:1 D5:1 D5:.5 E5:.5 D5:.5 C5:.5 B4:1 G4:1 G4:1 E5:1 E5:.5 F5:.5 E5:.5 D5:.5 C5:1 A4:1 G4:.5 G4:.5 A4:1 D5:1 B4:1 C5:3')},
+  {name:'平安夜',beat:.36,bell:false,type:'sine',notes:seq('G4:1.5 A4:.5 G4:1 E4:3 G4:1.5 A4:.5 G4:1 E4:3 D5:2 D5:1 B4:3 C5:2 C5:1 G4:3 A4:2 A4:1 C5:1.5 B4:.5 A4:1 G4:1.5 A4:.5 G4:1 E4:3 '+
+    'A4:2 A4:1 C5:1.5 B4:.5 A4:1 G4:1.5 A4:.5 G4:1 E4:3 D5:2 D5:1 F5:1.5 D5:.5 B4:1 C5:3 E5:3 C5:1 G4:1 E4:1 G4:1.5 F4:.5 D4:1 C4:6')}
+];
+let actx=null,mOn=false,nextT=0,si=0,mTimer=null,song=null;
 function tone(f,t,d,type,vol){const o=actx.createOscillator(),g=actx.createGain();o.type=type;o.frequency.value=f;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.012);g.gain.exponentialRampToValueAtTime(.0008,t+d);o.connect(g);g.connect(actx.destination);o.start(t);o.stop(t+d+.05);}
-function tick(){while(nextT<actx.currentTime+.35){const [n,b]=SONG[si];const d=b*BEAT;if(b>0){tone(F[n],nextT,Math.max(d*.95,.2),'triangle',.16);tone(F[n]*2,nextT,.25,'sine',.05);}if(si%2===0)tone(2637,nextT,.09,'square',.012);nextT+=b>0?d:BEAT*2;si=(si+1)%SONG.length;}}
-btnMusic.onclick=()=>{try{if(!actx)actx=new (window.AudioContext||window.webkitAudioContext)();}catch(e){btnMusic.textContent='此裝置不支援音效';return;}
-  mOn=!mOn;btnMusic.setAttribute('aria-pressed',String(mOn));btnMusic.textContent=mOn?'停止鈴聲':'播放鈴聲';
-  if(mOn){actx.resume();nextT=actx.currentTime+.05;si=0;mTimer=setInterval(tick,90);}else clearInterval(mTimer);};
+function pickSong(){const pool=SONGS.filter(x=>x!==song);song=pool[(Math.random()*pool.length)|0];si=0;btnMusic.textContent='♪ '+song.name;btnMusic.setAttribute('aria-label','停止音樂（正在播放：'+song.name+'）');}
+function tick(){while(nextT<actx.currentTime+.4){const [n,b]=song.notes[si],d=b*song.beat;
+    if(n!=='R'){const f=hz(n),soft=song.type==='sine';tone(f,nextT,Math.max(d*(soft?1.05:.95),.2),song.type,soft?.2:.16);tone(f*2,nextT,soft?.5:.25,'sine',soft?.03:.05);}
+    if(song.bell&&si%2===0)tone(2637,nextT,.09,'square',.012);
+    nextT+=d;si++;if(si>=song.notes.length){nextT+=song.beat*3;pickSong();}}}
+btnMusic.onclick=()=>{try{if(!actx)actx=new (window.AudioContext||window.webkitAudioContext)();}catch(e){btnMusic.textContent='不支援音效';return;}
+  mOn=!mOn;btnMusic.setAttribute('aria-pressed',String(mOn));
+  if(mOn){actx.resume();nextT=actx.currentTime+.05;song=null;pickSong();mTimer=setInterval(tick,90);}
+  else{clearInterval(mTimer);btnMusic.textContent='播放聖誕歌';btnMusic.removeAttribute('aria-label');}};
 
 /* ---------- Animate ---------- */
 const clock=new THREE.Clock();let T=0;const SP=reduce?.5:1;const tmp=V(0,0,0),prevT=V(0,0,0);
