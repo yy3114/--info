@@ -48,6 +48,26 @@ button:focus-visible,.greet:focus-visible{outline:2px solid var(--gold);outline-
 .ctrls button.gift{background:linear-gradient(180deg,#e0505a,#a8222c);border-color:rgba(255,255,255,.4);font-weight:700;touch-action:manipulation}
 .ctrls button.gift:active{transform:scale(.95)}
 @media (max-width:460px){.ctrls{gap:6px}.ctrls button{font-size:13px;padding:7px 10px}}
+.tray{display:flex;gap:8px;align-items:center;pointer-events:auto;max-width:100%}
+.slots{display:flex;gap:6px}
+.slot{width:42px;height:42px;box-sizing:border-box;border-radius:12px;border:1.5px dashed rgba(242,193,78,.55);background:rgba(9,22,48,.5);display:grid;place-items:center;font-size:23px;line-height:1;transition:transform .3s,box-shadow .3s}
+.slot.full{border-style:solid;border-color:var(--c);background:rgba(9,22,48,.85);box-shadow:0 0 12px var(--c);transform:scale(1.06)}
+.tmsg{font-size:12px;color:var(--snow);line-height:1.35;max-width:11em;min-width:0}
+.tmsg b{color:var(--gold);font-variant-numeric:tabular-nums}
+.fly{position:fixed;left:0;top:0;z-index:20;font-size:30px;pointer-events:none;transition:transform .8s cubic-bezier(.3,.7,.3,1),opacity .8s}
+.finale{position:fixed;inset:0;z-index:30;display:grid;place-items:center;pointer-events:none;background:radial-gradient(circle at 50% 45%,rgba(6,18,43,.55),rgba(6,18,43,.85));opacity:0;transition:opacity .8s}
+.finale.on{opacity:1}
+.finale .msg{text-align:center;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));transform:scale(.7);opacity:0;transition:transform 1s cubic-bezier(.2,.9,.3,1.3) .5s,opacity .8s .5s}
+.finale.on .msg{transform:scale(1);opacity:1}
+.finale h2{margin:0;font-family:var(--f-display);font-weight:700;font-size:clamp(46px,13vw,100px);line-height:1.15;letter-spacing:.08em;color:var(--snow);text-shadow:0 0 26px rgba(242,193,78,.75),0 4px 0 rgba(200,50,60,.6)}
+.finale h2 span{display:block;color:var(--gold)}
+.finale p{margin:10px 0 18px;font-size:14px;line-height:1.6;letter-spacing:.1em;color:var(--ink)}
+.finale button{pointer-events:auto;font:inherit;font-size:15px;font-weight:700;color:#fff;background:linear-gradient(180deg,#e0505a,#a8222c);border:1px solid rgba(255,255,255,.4);border-radius:999px;padding:10px 20px;cursor:pointer}
+.fgift{position:fixed;z-index:31;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:2px;transform:translate(-50%,-50%);transition:left 1.5s cubic-bezier(.3,.8,.3,1),top 1.5s cubic-bezier(.3,.8,.3,1);animation:bob 3.2s ease-in-out infinite}
+.fgift b{font-size:46px;line-height:1;filter:drop-shadow(0 0 10px rgba(242,193,78,.8))}
+.fgift small{font-size:12px;color:var(--snow);background:rgba(9,22,48,.7);border:1px solid var(--line);border-radius:999px;padding:2px 8px;white-space:nowrap}
+@keyframes bob{0%,100%{transform:translate(-50%,-50%) rotate(-6deg)}50%{transform:translate(-50%,calc(-50% - 16px)) rotate(6deg)}}
+@media (prefers-reduced-motion:reduce){.fgift{animation:none}}
 .hint{font-size:11px;color:var(--muted);letter-spacing:.06em}
 
 .fallback{position:fixed;left:16px;right:16px;top:50%;text-align:center;color:var(--muted)}
@@ -72,6 +92,10 @@ button:focus-visible,.greet:focus-visible{outline:2px solid var(--gold);outline-
 </div>
 
 <nav class="bar">
+  <div class="tray">
+    <div class="slots" id="slots"><span class="slot"></span><span class="slot"></span><span class="slot"></span><span class="slot"></span><span class="slot"></span></div>
+    <div class="tmsg" id="tmsg">在各島按「撒禮物」，每島領 1 份 <b>0/5</b></div>
+  </div>
   <div class="chips" id="chips"></div>
   <div class="ctrls">
     <button id="btnView" aria-pressed="false">看全景</button>
@@ -81,6 +105,10 @@ button:focus-visible,.greet:focus-visible{outline:2px solid var(--gold);outline-
   </div>
   <div class="hint">點島名讓聖誕老人飛過去 · 拖曳旋轉 · 雙指縮放</div>
 </nav>
+
+<div class="finale" id="finale" hidden>
+  <div class="msg"><h2>聖誕快樂<span>新年快樂</span></h2><p>Merry Christmas &amp; Happy New Year 2027<br>尿路一路暢通</p><button id="btnAgain">再收集一次</button></div>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -99,9 +127,9 @@ let flyTo=()=>{};
 ISL.forEach((s,i)=>{const b=document.createElement('button');b.style.setProperty('--c',s.color);b.innerHTML='<i></i>'+s.name;b.onclick=()=>flyTo(i);chips.appendChild(b);});
 function markChip(i){[...chips.children].forEach((d,k)=>d.setAttribute('aria-current',k===i?'true':'false'));}
 function paint(i){const s=ISL[i];gEm.textContent=s.em;gIsl.textContent=s.name+' · '+s.en;gL1.textContent=s.l1;gL2.textContent=s.l2;greet.style.setProperty('--isl',s.color);markChip(i);}
-function showGreet(i){paint(i);greet.classList.add('show');}
+function showGreet(i){paint(i);if(!finaleOn)greet.classList.add('show');}
 function hideGreet(){greet.classList.remove('show');}
-let curIsland=0;
+let curIsland=0,finaleOn=false;
 greet.addEventListener('click',()=>flyTo((curIsland+1)%5));
 greet.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();flyTo((curIsland+1)%5);}});
 paint(0);
@@ -501,7 +529,30 @@ document.addEventListener('pointerdown',()=>{try{if(!actx)actx=new (window.Audio
 let deck=[],lastGift=null;
 function drawGift(){if(!deck.length){deck=GIFTS.slice();for(let i=deck.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[deck[i],deck[j]]=[deck[j],deck[i]];}if(deck[deck.length-1]===lastGift)deck.unshift(deck.pop());}return lastGift=deck.pop();}
 const btnGift=document.getElementById('btnGift');let giftCool=0;
-btnGift.addEventListener('click',()=>{if(giftCool>0)return;giftCool=.5;for(let i=0;i<3;i++)setTimeout(()=>dropGift(curIsland,drawGift()),i*260);});
+btnGift.addEventListener('click',()=>{if(giftCool>0)return;giftCool=.5;const batch=[drawGift(),drawGift(),drawGift()];batch.forEach((G,i)=>setTimeout(()=>dropGift(curIsland,G),i*260));reward(curIsland,batch);});
+/* collection: one gift per island, five slots, then the finale */
+const slotEls=[...document.querySelectorAll('#slots .slot')],tmsg=document.getElementById('tmsg'),finaleEl=document.getElementById('finale');
+const collected=[],claimed=new Set();let fgifts=[];
+const setMsg=h=>{tmsg.innerHTML=h;};
+function screenOf(v3){const v=v3.clone().project(camera);return {x:Math.min(innerWidth-30,Math.max(30,(v.x+1)/2*innerWidth)),y:Math.min(innerHeight-30,Math.max(30,(1-v.y)/2*innerHeight))};}
+function reward(j,batch){if(finaleOn||collected.length>=5)return;
+  if(claimed.has(j)){setMsg(ISL[j].name+'的禮物已領 · 去別的島吧 <b>'+collected.length+'/5</b>');return;}
+  const G=batch.find(g=>!collected.some(c=>c.G===g))||batch[0];claimed.add(j);collected.push({G,j});const idx=collected.length-1,slot=slotEls[idx];
+  const from=screenOf(sleigh.position),r=slot.getBoundingClientRect();
+  const f=document.createElement('span');f.className='fly';f.textContent=G.em;f.style.transform='translate('+(from.x-15)+'px,'+(from.y-15)+'px) scale(1.4)';document.body.appendChild(f);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{f.style.transform='translate('+(r.left+r.width/2-15)+'px,'+(r.top+r.height/2-17)+'px) scale(.85)';}));
+  setTimeout(()=>{f.remove();slot.textContent=G.em;slot.style.setProperty('--c',ISL[j].color);slot.classList.add('full');slot.title=G.t+'（'+ISL[j].name+'）';slot.setAttribute('aria-label',G.t);
+    const n=collected.length;setMsg('獲得「'+G.t+'」 <b>'+n+'/5</b>'+(n<5?' · 前往下一座島':''));if(n===5)setTimeout(showFinale,700);},850);}
+function showFinale(){finaleOn=true;hideGreet();finaleEl.hidden=false;requestAnimationFrame(()=>finaleEl.classList.add('on'));
+  const cx=innerWidth/2,cy=innerHeight*.45,rx=Math.min(innerWidth*.38,300),ry=Math.min(innerHeight*.3,230);
+  collected.forEach((c,i)=>{const r=slotEls[i].getBoundingClientRect(),el=document.createElement('div');el.className='fgift';el.innerHTML='<b>'+c.G.em+'</b><small>'+c.G.t+'</small>';
+    el.style.left=(r.left+r.width/2)+'px';el.style.top=(r.top+r.height/2)+'px';el.style.animationDelay=(-i*.64)+'s';document.body.appendChild(el);fgifts.push(el);
+    slotEls[i].textContent='';slotEls[i].classList.remove('full');
+    const a=-Math.PI/2+i*Math.PI*2/5;setTimeout(()=>{el.style.left=(cx+Math.cos(a)*rx)+'px';el.style.top=(cy+Math.sin(a)*ry*1.05)+'px';},60+i*120);});
+  setMsg('收集完成 <b>5/5</b>');}
+document.getElementById('btnAgain').addEventListener('click',()=>{fgifts.forEach(e=>e.remove());fgifts=[];collected.length=0;claimed.clear();finaleOn=false;
+  finaleEl.classList.remove('on');setTimeout(()=>{finaleEl.hidden=true;},800);slotEls.forEach(s=>{s.textContent='';s.classList.remove('full');s.removeAttribute('title');});
+  setMsg('在各島按「撒禮物」，每島領 1 份 <b>0/5</b>');showGreet(curIsland);});
 
 const TR=360,trPos=new Float32Array(TR*3),trCol=new Float32Array(TR*3),trLife=new Float32Array(TR);let trI=0;
 const trGeo=new THREE.BufferGeometry();trGeo.setAttribute('position',new THREE.BufferAttribute(trPos,3));trGeo.setAttribute('color',new THREE.BufferAttribute(trCol,3));
