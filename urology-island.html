@@ -30,15 +30,28 @@ body{margin:0;overflow:hidden;background:linear-gradient(180deg,var(--sky-top) 0
 .greet .l1{color:var(--snow)}
 .greet .l2{color:var(--gold);font-weight:700}
 .bar{position:fixed;left:0;right:0;bottom:0;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 12px);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
-.chips{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;pointer-events:auto}
-.chips button{font:inherit;font-size:13px;color:var(--snow);background:var(--glass);border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:6px 11px;cursor:pointer;display:flex;align-items:center;gap:6px}
+.chips{display:flex;gap:6px;flex-wrap:nowrap;justify-content:center;pointer-events:auto}
+.chips button{font:inherit;font-size:13px;color:var(--snow);background:var(--glass);border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:6px clamp(7px,2.2vw,11px);cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap}
+@media (max-width:460px){.chips{gap:4px}.chips button{font-size:clamp(11px,3.2vw,13px);border-bottom:2px solid var(--c)}.chips button i{display:none}}
 .chips button i{width:9px;height:9px;border-radius:50%;background:var(--c)}
 .chips button[aria-current="true"]{border-color:var(--c);box-shadow:0 0 12px var(--c)}
 .ctrls{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;pointer-events:auto}
 .ctrls button{font:inherit;font-size:14px;color:var(--snow);background:var(--glass);border:1px solid var(--line);border-radius:999px;padding:7px 14px;cursor:pointer}
 .ctrls button[aria-pressed="true"]{background:rgba(200,50,60,.55)}
 button:focus-visible,.greet:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
-.hint{font-size:11px;color:var(--muted);letter-spacing:.06em}
+.nw{white-space:nowrap}
+.game{pointer-events:auto;width:min(100%,520px);box-sizing:border-box;display:flex;align-items:center;gap:10px;padding:8px 8px 8px 12px;background:var(--glass);border:1px solid var(--line);border-radius:16px}
+.gl{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.gstat{font-size:13px;color:var(--snow);line-height:1.35}
+.gscore{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.pbar{position:relative;height:12px;border-radius:6px;background:rgba(255,255,255,.14);overflow:hidden}
+.pbar .zone{position:absolute;top:0;bottom:0;background:rgba(79,208,138,.8)}
+.pbar .needle{position:absolute;top:0;bottom:0;width:4px;margin-left:-2px;background:var(--gold);box-shadow:0 0 6px var(--gold)}
+#btnRam{flex:none;font:inherit;font-weight:700;font-size:15px;color:#fff;background:linear-gradient(180deg,#e0505a,#a8222c);border:1px solid rgba(255,255,255,.35);border-radius:14px;padding:12px 12px;min-width:108px;cursor:pointer;touch-action:manipulation}
+#btnRam:disabled{opacity:.45;cursor:default}
+#btnRam.pulse{animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 6px rgba(224,80,90,.4)}}
+@media (prefers-reduced-motion:reduce){#btnRam.pulse{animation:none}}
 .fallback{position:fixed;left:16px;right:16px;top:50%;text-align:center;color:var(--muted)}
 </style>
 
@@ -47,7 +60,7 @@ button:focus-visible,.greet:focus-visible{outline:2px solid var(--gold);outline-
 <header class="top">
   <div class="brand">
     <h1>泌尿<span>群島</span></h1>
-    <p>Urology Islands · Merry Christmas 2026</p>
+    <p>Urology Islands · <span class="nw">Merry Christmas 2026</span></p>
   </div>
   <div class="stamp">泌尿科聖誕特輯</div>
 </header>
@@ -59,13 +72,20 @@ button:focus-visible,.greet:focus-visible{outline:2px solid var(--gold);outline-
 </div>
 
 <nav class="bar">
+  <div class="game">
+    <div class="gl">
+      <div class="gstat" id="gStat">巡航中… 目標出現時按「衝撞」。點島名可指定航線</div>
+      <div class="pbar" id="pBar" hidden><span class="zone" id="pZone"></span><span class="needle" id="pNeedle"></span></div>
+      <div class="gscore" id="gScore">擊碎　🦠 0　🪨 0　🥦 0</div>
+    </div>
+    <button id="btnRam" disabled>🦌 衝撞！</button>
+  </div>
   <div class="chips" id="chips"></div>
   <div class="ctrls">
     <button id="btnView" aria-pressed="false">看全景</button>
     <button id="btnSpin" aria-pressed="true">暫停旋轉</button>
     <button id="btnMusic" aria-pressed="false">播放鈴聲</button>
   </div>
-  <div class="hint">點島名讓聖誕老人飛過去 · 拖曳旋轉 · 雙指縮放</div>
 </nav>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -353,8 +373,8 @@ let overview=false,zoomGoal=null;const goal=V(0,1.5,0);
 controls.target.copy(C[0]).setY(3);camera.position.copy(controls.target).add(V(0,.5,1).normalize().multiplyScalar(followDist()));
 const btnView=document.getElementById('btnView');
 btnView.onclick=()=>{overview=!overview;btnView.setAttribute('aria-pressed',String(overview));btnView.textContent=overview?'跟隨聖誕老人':'看全景';zoomGoal=overview?overviewDist():followDist();};
-const btnSpin=document.getElementById('btnSpin');const spinTxt=()=>{btnSpin.setAttribute('aria-pressed',String(controls.autoRotate));btnSpin.textContent=controls.autoRotate?'暫停旋轉':'開始旋轉';};spinTxt();
-btnSpin.onclick=()=>{controls.autoRotate=!controls.autoRotate;spinTxt();};
+let userSpin=!reduce;const btnSpin=document.getElementById('btnSpin');const spinTxt=()=>{btnSpin.setAttribute('aria-pressed',String(userSpin));btnSpin.textContent=userSpin?'暫停旋轉':'開始旋轉';};spinTxt();
+btnSpin.onclick=()=>{userSpin=!userSpin;spinTxt();};
 
 /* ---------- Jingle Bells (synth) ---------- */
 const btnMusic=document.getElementById('btnMusic');
@@ -367,6 +387,103 @@ function tick(){while(nextT<actx.currentTime+.35){const [n,b]=SONG[si];const d=b
 btnMusic.onclick=()=>{try{if(!actx)actx=new (window.AudioContext||window.webkitAudioContext)();}catch(e){btnMusic.textContent='此裝置不支援音效';return;}
   mOn=!mOn;btnMusic.setAttribute('aria-pressed',String(mOn));btnMusic.textContent=mOn?'停止鈴聲':'播放鈴聲';
   if(mOn){actx.resume();nextT=actx.currentTime+.05;si=0;mTimer=setInterval(tick,90);}else clearInterval(mTimer);};
+
+/* ---------- Mini-game: ram bacteria / stones / tumours ---------- */
+const btnRam=document.getElementById('btnRam'),gStat=document.getElementById('gStat'),pBar=document.getElementById('pBar'),pZone=document.getElementById('pZone'),pNeedle=document.getElementById('pNeedle'),gScore=document.getElementById('gScore');
+const KINDS=[
+  {key:'bac',name:'大腸桿菌',em:'🦠',color:'#7ed957',hex:0x7ed957},
+  {key:'stone',name:'草酸鈣結石',em:'🪨',color:'#d8c08a',hex:0xd8c08a},
+  {key:'tumor',name:'乳突狀腫瘤',em:'🥦',color:'#ff7a9a',hex:0xff7a9a}
+];
+const MAXD=28,HITR=2.4,Y_AX=V(0,1,0);
+const game={phase:'idle',tgt:null,next:4,t:0,tick:0,score:{bac:0,stone:0,tumor:0},fx:[]};
+const engaged=()=>game.phase==='aim'||game.phase==='power'||game.phase==='dash';
+const setStat=t=>{gStat.textContent=t;};
+const paintScore=()=>{gScore.textContent='擊碎　🦠 '+game.score.bac+'　🪨 '+game.score.stone+'　🥦 '+game.score.tumor;};
+function ringTex(){const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');x.strokeStyle='#ffffff';x.lineWidth=6;x.setLineDash([14,10]);x.beginPath();x.arc(64,64,56,0,Math.PI*2);x.stroke();return new THREE.CanvasTexture(c);}
+const RINGTEX=ringTex();
+function buildTarget(kind){
+  const g=new THREE.Group(),body=new THREE.Group();g.add(body);
+  if(kind.key==='bac'){
+    const m=M(kind.hex,{emissive:0x2a6a10,emissiveIntensity:.5,roughness:.4});
+    const b=mesh(new THREE.SphereGeometry(.6,20,14),m,0,0,0,body);b.scale.set(1,1,2.1);
+    for(let i=0;i<6;i++){const a=i/6*Math.PI*2,pts=[];for(let j=0;j<=10;j++){const u=j/10;pts.push(V(Math.cos(a)*(.4+u*.3)+Math.sin(u*9+i)*.18,Math.sin(a)*(.4+u*.3),-1.1-u*1.6));}mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),20,.035,5,false),m,0,0,0,body,false);}
+    for(let i=0;i<14;i++){const a=Math.random()*Math.PI*2,z=(Math.random()-.5)*2;const pl=mesh(new THREE.CylinderGeometry(.02,.02,.3,4),m,Math.cos(a)*.62,Math.sin(a)*.62,z,body,false);pl.lookAt(0,0,z);pl.rotateX(Math.PI/2);}
+  }else if(kind.key==='stone'){
+    const geo=new THREE.IcosahedronGeometry(1.05,1),a=geo.attributes.position;
+    for(let i=0;i<a.count;i++){const v=V(a.getX(i),a.getY(i),a.getZ(i));v.multiplyScalar(.75+hash(v.x,v.y,v.z)*.7);a.setXYZ(i,v.x,v.y,v.z);}
+    geo.computeVertexNormals();mesh(geo,M(kind.hex,{flatShading:true,roughness:.9}),0,0,0,body);
+  }else{
+    const m=M(kind.hex,{emissive:0x5a1020,emissiveIntensity:.4,roughness:.5});
+    mesh(new THREE.SphereGeometry(.7,16,12),M(0xd9667f,{roughness:.6}),0,-.4,0,body).scale.y=.5;
+    for(let i=0;i<16;i++){const a=i*2.4,r=Math.sqrt(i/16)*.8,y=-.1+Math.random()*.8;const f=mesh(new THREE.CylinderGeometry(.06,.09,y+.5,6),m,Math.cos(a)*r*.7,(y-.4)/2,Math.sin(a)*r*.7,body,false);mesh(new THREE.SphereGeometry(.22+Math.random()*.16,10,8),m,Math.cos(a)*r,y,Math.sin(a)*r,body);}
+  }
+  const ring=new THREE.Sprite(new THREE.SpriteMaterial({map:RINGTEX,color:0xff5050,transparent:true,depthWrite:false}));ring.scale.set(4.4,4.4,1);g.add(ring);g.userData={body,ring};
+  label(kind.em+' '+kind.name,g,0,2.3,0,.6,kind.color);
+  return g;
+}
+/* aiming arrow */
+const arrowMat=new THREE.MeshBasicMaterial({color:0xff5050,transparent:true,opacity:.9,depthTest:false});
+const arrow=new THREE.Group(),shaftGeo=new THREE.CylinderGeometry(.12,.12,1,8);shaftGeo.rotateX(Math.PI/2);shaftGeo.translate(0,0,.5);
+const shaft=new THREE.Mesh(shaftGeo,arrowMat),headGeo=new THREE.ConeGeometry(.42,1.1,12);headGeo.rotateX(Math.PI/2);const head=new THREE.Mesh(headGeo,arrowMat);
+shaft.renderOrder=head.renderOrder=9;arrow.add(shaft,head);arrow.visible=false;scene.add(arrow);
+function setArrow(dir,len,ok){arrow.position.copy(sleigh.position);arrow.position.y+=1;arrow.lookAt(arrow.position.clone().add(dir));shaft.scale.z=len;head.position.z=len+.5;arrowMat.color.setHex(ok?0x4fd08a:0xff5050);}
+/* sound effects */
+function audio(){try{if(!actx)actx=new (window.AudioContext||window.webkitAudioContext)();actx.resume();return actx;}catch(e){return null;}}
+function sfx(hit){const a=audio();if(!a)return;const t=a.currentTime;
+  if(hit){const n=a.sampleRate*.35,buf=a.createBuffer(1,n,a.sampleRate),d=buf.getChannelData(0);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/n,3);const src=a.createBufferSource();src.buffer=buf;const g=a.createGain();g.gain.value=.35;src.connect(g);g.connect(a.destination);src.start(t);tone(1318,t+.05,.3,'triangle',.12);tone(1975,t+.12,.35,'triangle',.1);}
+  else{const o=a.createOscillator(),g=a.createGain();o.type='sine';o.frequency.setValueAtTime(420,t);o.frequency.exponentialRampToValueAtTime(160,t+.4);g.gain.setValueAtTime(.18,t);g.gain.exponentialRampToValueAtTime(.001,t+.45);o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+.5);}}
+function removeTarget(){if(game.tgt){scene.remove(game.tgt.g);game.tgt=null;}}
+function spawn(){const kind=KINDS[(Math.random()*3)|0],g=buildTarget(kind);const f=lastDir.clone(),side=V(-f.z,0,f.x);
+  const pos=sleigh.position.clone().addScaledVector(f,11+Math.random()*6).addScaledVector(side,(Math.random()-.5)*10);pos.y=4.5+Math.random()*3.5;
+  g.position.copy(pos);scene.add(g);game.tgt={g,kind,life:22,base:pos.clone()};game.phase='ready';btnRam.disabled=false;btnRam.classList.add('pulse');btnRam.textContent='🦌 衝撞！';
+  setStat(kind.em+' 前方出現'+kind.name+'！按「衝撞」開始瞄準');}
+function shatter(t){const p=t.g.position.clone(),mat=new THREE.MeshStandardMaterial({color:t.kind.hex,roughness:.6,transparent:true,flatShading:true});
+  for(let i=0;i<18;i++){const m=new THREE.Mesh(new THREE.TetrahedronGeometry(.18+Math.random()*.22),mat);m.position.copy(p);scene.add(m);game.fx.push({m,v:V(Math.random()-.5,Math.random()*.8,Math.random()-.5).normalize().multiplyScalar(5+Math.random()*6),s:V(Math.random()*8,Math.random()*8,0),life:1.6,mat});}
+  const fl=new THREE.Sprite(new THREE.SpriteMaterial({map:DOT,color:0xfff2b0,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));fl.position.copy(p);scene.add(fl);game.fx.push({m:fl,flash:true,life:.6});
+  const tx=label('💥 擊碎！',scene,p.x,p.y+1,p.z,.9,'#f2c14e');game.fx.push({m:tx,rise:true,life:1.6});}
+btnRam.addEventListener('click',()=>{audio();const t=game.tgt;
+  if(game.phase==='ready'&&t){const d=sleigh.position.distanceTo(t.g.position);if(d>MAXD-2){setStat('距離 '+d.toFixed(0)+'，太遠了！等雪橇靠近一點再衝');return;}
+    game.phase='aim';game.t=Math.random()*3;btnRam.classList.remove('pulse');btnRam.textContent='① 鎖定方向';arrow.visible=true;setStat('箭頭轉綠時按 ① 鎖定方向');}
+  else if(game.phase==='aim'){game.err=game.cur;game.phase='power';game.t=0;
+    const d=sleigh.position.distanceTo(t.g.position);game.req=d/MAXD;game.tolP=2.6/MAXD;pZone.style.left=((game.req-game.tolP)*100)+'%';pZone.style.width=(game.tolP*200)+'%';pBar.hidden=false;
+    btnRam.textContent='② 鎖定力道';setStat(Math.abs(game.err)<=game.tolA?'方向 OK！指針進入綠區時按 ②':'方向偏了… 指針進入綠區時按 ②');}
+  else if(game.phase==='power'){const pow=game.pow,okA=Math.abs(game.err)<=game.tolA,dp=pow-game.req,okP=Math.abs(dp)<=game.tolP;
+    const from=sleigh.position.clone(),tv=t.g.position.clone().sub(from).normalize().applyAxisAngle(Y_AX,game.err);
+    const ok=okA&&okP,to=ok?t.g.position.clone():from.clone().addScaledVector(tv,Math.max(3,pow*MAXD));
+    let msg='';if(!okA)msg+='方向偏了 '+Math.round(Math.abs(game.err)*180/Math.PI)+'°';if(!okP)msg+=(msg?'，':'')+(dp<0?'力道不足':'力道過猛，衝過頭');
+    game.dash={from,to,t:0,dur:.7,ok,msg};game.phase='dash';arrow.visible=false;pBar.hidden=true;btnRam.disabled=true;btnRam.textContent='衝刺中…';}
+});
+function gameStep(dt){
+  const t=game.tgt;
+  if(t){t.g.position.y=t.base.y+Math.sin(T*1.6)*.35;t.g.userData.body.rotation.y+=dt*.8;t.g.userData.body.rotation.x=Math.sin(T*1.3)*.3;const r=t.g.userData.ring;r.material.rotation+=dt;const s=4.2+Math.sin(T*4)*.3;r.scale.set(s,s,1);}
+  if(game.phase==='idle'){game.next-=dt;if(game.next<=0)spawn();}
+  else if(game.phase==='ready'){t.life-=dt;game.tick-=dt;
+    if(t.life<=0){removeTarget();game.phase='idle';game.next=5+Math.random()*5;btnRam.disabled=true;btnRam.classList.remove('pulse');setStat(t.kind.em+' '+t.kind.name+'溜走了… 下一個目標馬上出現');}
+    else if(game.tick<=0){game.tick=.3;const d=sleigh.position.distanceTo(t.g.position);setStat(t.kind.em+' '+t.kind.name+' · 距離 '+d.toFixed(0)+(d>MAXD-2?'（太遠）':'（可衝撞）')+' · 剩 '+Math.ceil(t.life)+' 秒');}}
+  else if(game.phase==='aim'||game.phase==='power'){
+    game.t+=dt;const from=sleigh.position,d=from.distanceTo(t.g.position);game.tolA=Math.max(5*Math.PI/180,Math.atan(HITR/d)*.8);
+    if(game.phase==='aim')game.cur=.7*Math.sin(game.t*2.2);
+    const dir=t.g.position.clone().sub(from).normalize().applyAxisAngle(Y_AX,game.phase==='aim'?game.cur:game.err);
+    const okA=Math.abs(game.phase==='aim'?game.cur:game.err)<=game.tolA;
+    if(game.phase==='power'){const ph=(game.t*1.0)%2;game.pow=ph<1?ph:2-ph;pNeedle.style.left=(game.pow*100)+'%';setArrow(dir,Math.max(1,game.pow*MAXD-1),okA&&Math.abs(game.pow-game.req)<=game.tolP);}
+    else setArrow(dir,9,okA);
+    sleigh.lookAt(from.clone().add(V(dir.x,0,dir.z)));}
+  else if(game.phase==='dash'){const ds=game.dash;ds.t+=dt;const u=Math.min(1,ds.t/ds.dur),e=u*u;
+    sleigh.position.copy(ds.from).lerp(ds.to,e);sleigh.lookAt(ds.to.clone().add(ds.to.clone().sub(ds.from)));
+    if(u>=1&&!ds.done){ds.done=true;
+      if(ds.ok&&t){shatter(t);game.score[t.kind.key]++;paintScore();sfx(true);setStat('💥 擊碎'+t.kind.name+'！');removeTarget();}
+      else{sfx(false);setStat('😵 沒撞到：'+ds.msg+'。再試一次！');}}
+    if(ds.t>=ds.dur+.6){lastDir=V(ds.to.x-ds.from.x,0,ds.to.z-ds.from.z).normalize();
+      if(game.tgt){game.phase='ready';game.tgt.life=Math.max(game.tgt.life,8);btnRam.disabled=false;btnRam.classList.add('pulse');btnRam.textContent='🦌 再衝一次';}
+      else{game.phase='idle';game.next=6+Math.random()*6;btnRam.disabled=true;btnRam.textContent='🦌 衝撞！';}
+      startTravel(tour.j);}}
+  for(let i=game.fx.length-1;i>=0;i--){const f=game.fx[i];f.life-=dt;
+    if(f.flash){const k=1-f.life/.6;f.m.scale.setScalar(2+k*7);f.m.material.opacity=Math.max(0,f.life/.6);}
+    else if(f.rise){f.m.position.y+=dt*1.2;f.m.material.opacity=Math.min(1,f.life);}
+    else{f.v.y-=9.8*dt;f.m.position.addScaledVector(f.v,dt);f.m.rotation.x+=f.s.x*dt;f.m.rotation.y+=f.s.y*dt;f.mat.opacity=Math.min(1,f.life);}
+    if(f.life<=0){scene.remove(f.m);game.fx.splice(i,1);}}
+}
 
 /* ---------- Animate ---------- */
 const clock=new THREE.Clock();let T=0;const SP=reduce?.5:1;const tmp=V(0,0,0),prevT=V(0,0,0);
@@ -382,13 +499,13 @@ function animate(){
   spinners.forEach(s=>s.rotation.y=T*.8);
   garlands.forEach((g,i)=>g.emissiveIntensity=i===curIsland?1.2+Math.sin(T*5)*.6:.35);
   nameTags.forEach((n,i)=>{const b=n.userData.base||(n.userData.base=n.scale.clone());const k=i===curIsland?1.15+Math.sin(T*3)*.05:1;n.scale.set(b.x*k,b.y*k,1);});
-  tourStep(dt);
+  if(!engaged())tourStep(dt);gameStep(dt);controls.autoRotate=userSpin&&!engaged();
   legs.forEach(l=>{l.p.rotation.x=Math.sin(T*9+l.ph)*.7;});
   for(let q=0;q<3;q++){tmp.set((Math.random()-.5)*.8,.1+Math.random()*.3,-1.1);sleigh.localToWorld(tmp);const i=trI;trI=(trI+1)%TR;trPos[i*3]=tmp.x;trPos[i*3+1]=tmp.y;trPos[i*3+2]=tmp.z;trLife[i]=1;const c=palette[(Math.random()*4)|0];trCol[i*3]=c[0];trCol[i*3+1]=c[1];trCol[i*3+2]=c[2];}
   for(let i=0;i<TR;i++){if(trLife[i]<=0)continue;const f=Math.max(0,trLife[i]-dt*.5),r=f/trLife[i];trLife[i]=f;trCol[i*3]*=r;trCol[i*3+1]*=r;trCol[i*3+2]*=r;trPos[i*3+1]-=dt*.4;}
   trGeo.attributes.position.needsUpdate=true;trGeo.attributes.color.needsUpdate=true;
   /* camera target easing */
-  if(overview)goal.set(0,0,2);else goal.copy(C[curIsland]).setY(3);
+  if(overview)goal.set(0,0,2);else if(engaged()&&game.tgt)goal.copy(sleigh.position).lerp(game.tgt.g.position,.5);else goal.copy(C[curIsland]).setY(3);
   prevT.copy(controls.target);controls.target.lerp(goal,Math.min(1,dt*1.6));camera.position.add(tmp.copy(controls.target).sub(prevT));
   if(zoomGoal!==null){const off=camera.position.clone().sub(controls.target);const d=off.length(),nd=d+(zoomGoal-d)*Math.min(1,dt*2.5);camera.position.copy(controls.target).add(off.setLength(nd));if(Math.abs(zoomGoal-nd)<.3)zoomGoal=null;}
   controls.update();renderer.render(scene,camera);requestAnimationFrame(animate);
