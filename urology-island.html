@@ -119,17 +119,17 @@ button:focus-visible,.greet:focus-visible{outline:2px solid var(--gold);outline-
 (function(){
 /* ---------- Islands & greetings (flow order: kidney → ureter → bladder → prostate → urethra) ---------- */
 const ISL=[
-  {name:'腎臟島',en:'KIDNEY',color:'#e0505a',hex:0xe0505a,em:'🎄',l1:'耶誕大餐有滋味，',l2:'結石別來湊一咖！'},
-  {name:'輸尿管島',en:'URETER',color:'#5cc4ff',hex:0x5cc4ff,em:'🎅',l1:'聖誕老人走煙囪，',l2:'祝你尿路一路通！'},
-  {name:'膀胱島',en:'BLADDER',color:'#f2c14e',hex:0xf2c14e,em:'🦌',l1:'紅鼻麋鹿來報到，',l2:'急尿頻尿都消散！'},
-  {name:'攝護腺島',en:'PROSTATE',color:'#b48cff',hex:0xb48cff,em:'🌟',l1:'天增歲月人增壽，',l2:'攝護腺不會年年增！'},
-  {name:'尿道島',en:'URETHRA',color:'#4fd08a',hex:0x4fd08a,em:'🎁',l1:'今年交換禮物，',l2:'明年不換尿布！'}
+  {name:'腎臟島',geo:'台灣',en:'KIDNEY',color:'#e0505a',hex:0xe0505a,em:'🎄',l1:'耶誕大餐有滋味，',l2:'結石別來湊一咖！'},
+  {name:'輸尿管島',geo:'澎湖',en:'URETER',color:'#5cc4ff',hex:0x5cc4ff,em:'🎅',l1:'聖誕老人走煙囪，',l2:'祝你尿路一路通！'},
+  {name:'膀胱島',geo:'金門',en:'BLADDER',color:'#f2c14e',hex:0xf2c14e,em:'🦌',l1:'紅鼻麋鹿來報到，',l2:'急尿頻尿都消散！'},
+  {name:'攝護腺島',geo:'蘭嶼',en:'PROSTATE',color:'#b48cff',hex:0xb48cff,em:'🌟',l1:'天增歲月人增壽，',l2:'攝護腺不會年年增！'},
+  {name:'尿道島',geo:'綠島',en:'URETHRA',color:'#4fd08a',hex:0x4fd08a,em:'🎁',l1:'今年交換禮物，',l2:'明年不換尿布！'}
 ];
 const greet=document.getElementById('greet'),gEm=document.getElementById('gEm'),gIsl=document.getElementById('gIsl'),gL1=document.getElementById('gL1'),gL2=document.getElementById('gL2'),chips=document.getElementById('chips');
 let flyTo=()=>{};
 ISL.forEach((s,i)=>{const b=document.createElement('button');b.style.setProperty('--c',s.color);b.innerHTML='<i></i>'+s.name;b.onclick=()=>flyTo(i);chips.appendChild(b);});
 function markChip(i){[...chips.children].forEach((d,k)=>d.setAttribute('aria-current',k===i?'true':'false'));}
-function paint(i){const s=ISL[i];gEm.textContent=s.em;gIsl.textContent=s.name+' · '+s.en;gL1.textContent=s.l1;gL2.textContent=s.l2;greet.style.setProperty('--isl',s.color);markChip(i);}
+function paint(i){const s=ISL[i];gEm.textContent=s.em;gIsl.textContent=s.name+' · '+s.geo;gL1.textContent=s.l1;gL2.textContent=s.l2;greet.style.setProperty('--isl',s.color);markChip(i);}
 function showGreet(i){paint(i);if(!finaleOn)greet.classList.add('show');}
 function hideGreet(){greet.classList.remove('show');}
 let curIsland=0,finaleOn=false;
@@ -149,7 +149,7 @@ const scene=new THREE.Scene();scene.fog=new THREE.Fog(0x0d2347,70,170);
 const camera=new THREE.PerspectiveCamera(45,1,.1,400);
 const controls=new THREE.OrbitControls(camera,canvas);
 controls.enableDamping=true;controls.dampingFactor=.07;controls.autoRotate=!reduce;controls.autoRotateSpeed=.45;
-controls.minDistance=10;controls.maxDistance=140;controls.maxPolarAngle=1.48;controls.enablePan=false;
+controls.minDistance=10;controls.maxDistance=200;controls.maxPolarAngle=1.48;controls.enablePan=false;
 scene.add(new THREE.HemisphereLight(0xbcd4ff,0x1c2a44,.65));
 const moonLight=new THREE.DirectionalLight(0xd6e4ff,.9);moonLight.position.set(-20,40,18);moonLight.castShadow=true;
 moonLight.shadow.mapSize.set(2048,2048);Object.assign(moonLight.shadow.camera,{left:-34,right:34,top:34,bottom:-34,near:1,far:110});scene.add(moonLight);
@@ -180,32 +180,74 @@ for(let i=0;i<SN;i++){snowPos[i*3]=(Math.random()-.5)*90;snowPos[i*3+1]=Math.ran
 const snowGeo=new THREE.BufferGeometry();snowGeo.setAttribute('position',new THREE.BufferAttribute(snowPos,3));
 scene.add(new THREE.Points(snowGeo,new THREE.PointsMaterial({size:.24,map:DOT,transparent:true,depthWrite:false,color:0xffffff})));
 
-/* ---------- Island bases (pentagon) ---------- */
-const RING=21,IR=6.4,TOP=.6;
+/* ---------- Island bases: miniature Taiwan, Penghu, Kinmen, Lanyu, Green Island (north = −z) ---------- */
+const RING=21,TOP=.6;
 const C=ISL.map((s,k)=>{const a=-Math.PI/2+k*Math.PI*2/5;return V(Math.cos(a)*RING,0,Math.sin(a)*RING);});
 const angTo=(i,j)=>Math.atan2(C[j].z-C[i].z,C[j].x-C[i].x);
 const P=(a,r,y)=>V(Math.cos(a)*r,y===undefined?TOP:y,Math.sin(a)*r);
 const hash=(x,y,z)=>{const s=Math.sin(Math.round(x*50)*12.9898+Math.round(y*50)*78.233+Math.round(z*50)*37.719)*43758.5453;return s-Math.floor(s);};
+/* outlines in map units (x east, y north); the origin is where each island's organ stands */
+const TW=[[121.53,25.30],[121.75,25.15],[121.93,25.03],[121.83,24.85],[121.80,24.60],[121.85,24.40],[121.65,24.00],[121.55,23.60],[121.45,23.20],[121.35,22.90],[121.00,22.60],[120.90,22.30],[120.85,21.90],[120.70,22.00],[120.65,22.35],[120.45,22.55],[120.25,22.75],[120.10,23.00],[120.08,23.40],[120.20,23.80],[120.45,24.25],[120.75,24.70],[121.05,25.05],[121.25,25.15],[121.45,25.25]].map(([lo,la])=>[(lo-120.88)*.916,la-23.75]);
+const OUT=[
+  {main:TW,need:5.0,islets:[]},
+  {main:[[0,1],[.45,.95],[.8,.7],[.95,.3],[.9,-.1],[1,-.45],[.7,-.8],[.3,-.75],[0,-.95],[-.35,-.8],[-.5,-.55],[-.9,-.75],[-1.05,-.5],[-.65,-.3],[-.55,-.05],[-.85,.12],[-.95,.45],[-.6,.8],[-.3,.95]],need:5.4,
+   islets:[[.15,1.75,.22],[-.35,-1.6,.28],[.25,-2.15,.24],[1.35,.2,.16],[-1.45,.7,.15]]},
+  {main:[[-.95,.45],[-.55,.88],[0,.85],[.5,.75],[.9,.45],[1.2,.22],[1.6,.42],[2.1,.82],[2.6,.88],[3,.58],[3.1,.1],[2.9,-.4],[2.5,-.72],[2,-.62],[1.6,-.36],[1.2,-.24],[.8,-.6],[.3,-.9],[-.3,-.86],[-.8,-.52],[-1.02,0]],need:5.4,
+   islets:[[-1.75,-.15,.42]]},
+  {main:[[0,1],[.55,.78],[.78,.2],[.62,-.45],[.25,-.95],[-.35,-.86],[-.72,-.35],[-.72,.25],[-.45,.78]],need:5.3,islets:[[.75,-1.45,.2]]},
+  {main:[[0,.92],[.55,.66],[.72,.1],[.5,-.55],[.1,-.86],[-.45,-.62],[-.66,0],[-.5,.56]],need:5.3,islets:[]}
+];
+function segDist(px,py,ax,ay,bx,by){const dx=bx-ax,dy=by-ay,t=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/(dx*dx+dy*dy)));return Math.hypot(px-ax-t*dx,py-ay-t*dy);}
+function resample(pts,step){const out=[];for(let i=0;i<pts.length;i++){const a=pts[i],b=pts[(i+1)%pts.length],n=Math.max(1,Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/step));for(let k=0;k<n;k++)out.push([a[0]+(b[0]-a[0])*k/n,a[1]+(b[1]-a[1])*k/n]);}return out;}
+function inPoly(x,y,pts){let c=false;for(let i=0,j=pts.length-1;i<pts.length;j=i++){const [xi,yi]=pts[i],[xj,yj]=pts[j];if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))c=!c;}return c;}
+const LAND=OUT.map(o=>{let md=1e9;o.main.forEach((a,i)=>{const b=o.main[(i+1)%o.main.length];md=Math.min(md,segDist(0,0,a[0],a[1],b[0],b[1]));});const sc=o.need/md;
+  return {sc,main:o.main.map(([x,y])=>[x*sc,y*sc]),islets:o.islets.map(([x,y,r])=>[x*sc,y*sc,r*sc])};});
+/* distance from an island's origin to its coast along a scene angle */
+function rimR(k,a){const pts=LAND[k].main,dx=Math.cos(a),dy=-Math.sin(a);let best=1e9;
+  for(let i=0;i<pts.length;i++){const [ax,ay]=pts[i],[bx,by]=pts[(i+1)%pts.length],ex=bx-ax,ey=by-ay,den=dx*ey-dy*ex;if(Math.abs(den)<1e-9)continue;
+    const t=(ax*ey-ay*ex)/den,u=(ax*dy-ay*dx)/den;if(t>0&&u>=0&&u<=1)best=Math.min(best,t);}return best;}
+function polyShape(pts){const sh=new THREE.Shape();pts.forEach(([x,y],i)=>i?sh.lineTo(x,y):sh.moveTo(x,y));sh.closePath();return sh;}
+const iceMat=M(0xcfe8ff,{roughness:.2,metalness:.1,transparent:true,opacity:.85}),rockMat=M(0x4d5a73,{flatShading:true,roughness:1}),dirtMat=M(0x6b4a33);
+function makeLand(g,pts,k,gm){
+  const cx=pts.reduce((s,p)=>s+p[0],0)/pts.length,cy=pts.reduce((s,p)=>s+p[1],0)/pts.length;
+  const top=new THREE.ExtrudeGeometry(polyShape(pts),{depth:.5,bevelEnabled:true,bevelSize:.12,bevelThickness:.05,bevelSegments:2});top.rotateX(-Math.PI/2);mesh(top,snowMat,0,.05,0,g);
+  const dp=pts.map(([x,y])=>[cx+(x-cx)*.985,cy+(y-cy)*.985]);const dg=new THREE.ExtrudeGeometry(polyShape(dp),{depth:.8,bevelEnabled:false});dg.rotateX(-Math.PI/2);mesh(dg,dirtMat,0,-.75,0,g);
+  /* rocky underside: rings shrinking toward a jagged point */
+  const ring=resample(pts,.9),N=ring.length,size=Math.sqrt(Math.abs(THREE.ShapeUtils.area(pts.map(p=>new THREE.Vector2(p[0],p[1]))))),H=3+size*.42;
+  const levels=[[.96,-.7],[.8,-.7-H*.3],[.55,-.7-H*.58],[.27,-.7-H*.82]],pos=[];const vtx=(L,i)=>{const [f,y]=levels[L],[x,yy]=ring[i%N];const j=L?(.86+hash(x+L,yy,k)*.28):1;return [cx+(x-cx)*f*j,y+(L?(hash(yy,x,L+k)-.5)*.8:0),-(cy+(yy-cy)*f*j)];};
+  for(let L=0;L<levels.length-1;L++)for(let i=0;i<N;i++){const a=vtx(L,i),b=vtx(L,i+1),c=vtx(L+1,i),d=vtx(L+1,i+1);pos.push(...a,...c,...b,...b,...c,...d);}
+  const apex=[cx,-.7-H,-cy];for(let i=0;i<N;i++){const a=vtx(levels.length-1,i),b=vtx(levels.length-1,i+1);pos.push(...a,...apex,...b);}
+  const rg=new THREE.BufferGeometry();rg.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));rg.computeVertexNormals();mesh(rg,rockMat,0,0,0,g);
+  /* icicles + garland along the coast */
+  const coast=resample(pts,.55),n=coast.length,dummy=new THREE.Object3D();
+  const ic=new THREE.InstancedMesh(new THREE.ConeGeometry(.08,1,5),iceMat,n);coast.forEach(([x,y],i)=>{const len=.25+hash(x,y,k)*.7;dummy.position.set(cx+(x-cx)*.995,.1-len/2,-(cy+(y-cy)*.995));dummy.rotation.set(Math.PI,0,0);dummy.scale.set(1,len,1);dummy.updateMatrix();ic.setMatrixAt(i,dummy.matrix);});g.add(ic);
+  if(gm){const gl=new THREE.InstancedMesh(new THREE.SphereGeometry(.1,8,6),gm,n);coast.forEach(([x,y],i)=>{dummy.position.set(cx+(x-cx)*.99,.66,-(cy+(y-cy)*.99));dummy.rotation.set(0,0,0);dummy.scale.set(1,1,1);dummy.updateMatrix();gl.setMatrixAt(i,dummy.matrix);});g.add(gl);}
+}
 const groups=[],garlands=[],nameTags=[];
 ISL.forEach((s,k)=>{
   const g=new THREE.Group();g.position.copy(C[k]);scene.add(g);groups.push(g);
-  mesh(new THREE.CylinderGeometry(IR,IR-.15,.5,64),snowMat,0,.35,0,g);
-  mesh(new THREE.CylinderGeometry(IR-.15,IR-.6,.8,64),M(0x6b4a33),0,-.3,0,g);
-  const cg=new THREE.ConeGeometry(IR-.6,7,26,6);cg.rotateX(Math.PI);const a=cg.attributes.position;
-  for(let i=0;i<a.count;i++){const x=a.getX(i),y=a.getY(i),z=a.getZ(i);if(y>3.4)continue;const q=.75+hash(x+k,y,z)*.5;a.setXYZ(i,x*q,y+(hash(z,x+k,y)-.5)*.6,z*q);}
-  cg.computeVertexNormals();mesh(cg,M(0x4d5a73,{flatShading:true,roughness:1}),0,-4.2,0,g);
-  const ice=M(0xcfe8ff,{roughness:.2,metalness:.1,transparent:true,opacity:.85});
-  for(let i=0;i<44;i++){const an=i/44*Math.PI*2,len=.25+Math.random()*.7;const c=mesh(new THREE.ConeGeometry(.08,len,5),ice,Math.cos(an)*(IR-.08),.1-len/2,Math.sin(an)*(IR-.08),g,false);c.rotation.x=Math.PI;}
-  /* garland of lights in the island colour */
-  const gm=new THREE.MeshStandardMaterial({color:s.hex,emissive:s.hex,emissiveIntensity:.6});
-  for(let i=0;i<40;i++){const an=i/40*Math.PI*2;mesh(new THREE.SphereGeometry(.1,8,6),gm,Math.cos(an)*(IR-.05),.62,Math.sin(an)*(IR-.05),g,false);}
-  garlands.push(gm);
-  nameTags.push(label(s.name,g,0,10.2,0,1.25,s.color,true));
+  const gm=new THREE.MeshStandardMaterial({color:s.hex,emissive:s.hex,emissiveIntensity:.6});garlands.push(gm);
+  makeLand(g,LAND[k].main,k,gm);
+  LAND[k].islets.forEach(([x,y,r],i)=>{const pts=[];for(let q=0;q<9;q++){const a=q/9*Math.PI*2,rr=r*(.75+hash(x+q,y,i)*.5);pts.push([x+Math.cos(a)*rr,y+Math.sin(a)*rr]);}makeLand(g,pts,k*10+i,gm);});
+  nameTags.push(label(s.name+'｜'+s.geo,g,0,10.2,0,1.25,s.color,true));
 });
+/* Taiwan extras: Central Mountain Range ridge + Taipei 101 */
+(function(){const g=groups[0],pts=LAND[0].main;const sc=LAND[0].sc;
+  for(let y=-14;y<=15;y+=1.8){if(Math.abs(y)<7.2)continue;const xs=[];pts.forEach((a,i)=>{const b=pts[(i+1)%pts.length];if((a[1]>y)!==(b[1]>y))xs.push(a[0]+(b[0]-a[0])*(y-a[1])/(b[1]-a[1]));});if(xs.length<2)continue;
+    const lo=Math.min(...xs),hi=Math.max(...xs),w=hi-lo;if(w<2.4)continue;const x=lo+w*.6,h=1.4+Math.min(2.2,w*.22)+hash(x,y,3)*.6,r=Math.min(w*.32,1.7);
+    mesh(new THREE.ConeGeometry(r,h,7),M(0x5b7a5a,{flatShading:true}),x,TOP+h/2,-y,g);mesh(new THREE.ConeGeometry(r*.42,h*.42,7),snowMat,x,TOP+h*.79,-y,g,false);}
+  const tp=[(121.565-120.88)*.916*sc,(25.035-23.75)*sc],t=new THREE.Group();t.position.set(tp[0],TOP,-tp[1]);g.add(t);const glass=M(0x7fb8b0,{roughness:.25,metalness:.4});
+  mesh(new THREE.BoxGeometry(.7,.5,.7),glass,0,.25,0,t);for(let i=0;i<8;i++){const m=mesh(new THREE.CylinderGeometry(.27,.2,.32,4),glass,0,.66+i*.34,0,t);m.rotation.y=Math.PI/4;}
+  limb(t,V(0,3.3,0),V(0,4.1,0),.04,.015,M(0xdddddd),false);label('台北 101',g,tp[0],TOP+4.7,-tp[1],.45,'#5cc4ff');})();
 /* pines near the outer rim */
-function pines(k,angles){angles.forEach(d=>{const a=Math.atan2(C[k].z,C[k].x)+d*Math.PI/180,r=IR-1.1,t=new THREE.Group();t.position.copy(P(a,r,TOP));const s=.5+Math.random()*.25;t.scale.setScalar(s);groups[k].add(t);
+function pineAt(k,x,z){const t=new THREE.Group();t.position.set(x,TOP,z);const s=.5+Math.random()*.25;t.scale.setScalar(s);groups[k].add(t);
+  mesh(new THREE.CylinderGeometry(.12,.15,.5,6),M(0x5a3a22),0,.25,0,t);mesh(new THREE.ConeGeometry(.9,1.6,10),M(0x2a7a4b),0,1.2,0,t);mesh(new THREE.ConeGeometry(.6,1.2,10),M(0x2f8f5b),0,2.0,0,t);mesh(new THREE.ConeGeometry(.3,.45,10),snowMat,0,2.55,0,t);}
+function pines(k,angles){angles.forEach(d=>{const a=Math.atan2(C[k].z,C[k].x)+d*Math.PI/180,r=Math.min(rimR(k,a),7.5)-1.1,t=new THREE.Group();t.position.copy(P(a,r,TOP));const s=.5+Math.random()*.25;t.scale.setScalar(s);groups[k].add(t);
   mesh(new THREE.CylinderGeometry(.12,.15,.5,6),M(0x5a3a22),0,.25,0,t);mesh(new THREE.ConeGeometry(.9,1.6,10),M(0x2a7a4b),0,1.2,0,t);mesh(new THREE.ConeGeometry(.6,1.2,10),M(0x2f8f5b),0,2.0,0,t);mesh(new THREE.ConeGeometry(.3,.45,10),snowMat,0,2.55,0,t);});}
 ISL.forEach((s,k)=>pines(k,k===0?[]:[-62,-30,30,62]));
+/* scattered pines on the parts of the land beyond the organ area */
+LAND.forEach((L,k)=>{if(k===0)return;const pts=L.main;let xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),n=0;for(let tries=0;tries<400&&n<14;tries++){const x=Math.min(...xs)+Math.random()*(Math.max(...xs)-Math.min(...xs)),y=Math.min(...ys)+Math.random()*(Math.max(...ys)-Math.min(...ys));
+  if(Math.hypot(x,y)<7.4||!inPoly(x,y,pts))continue;let ok=true;for(let i=0;i<pts.length&&ok;i++){const b=pts[(i+1)%pts.length];if(segDist(x,y,pts[i][0],pts[i][1],b[0],b[1])<.9)ok=false;}if(!ok)continue;pineAt(k,x,-y);n++;}});
 
 /* ---------- Water network: tubes + peristalsis drops ---------- */
 const waterMat=M(0x7fd3ff,{roughness:.15,metalness:.1,emissive:0x0b3a5c,transparent:true,opacity:.85});
@@ -215,7 +257,7 @@ function tube(pts,r,parent,nDrops,speed){const c=new THREE.CatmullRomCurve3(pts)
   for(let i=0;i<nDrops;i++){const m=mesh(new THREE.SphereGeometry(r*1.25,10,8),dropMat,0,0,0,parent,false);flows.push({m,c,o:i/nDrops,s:speed});}return c;}
 /* bridges between neighbouring islands (world space); kidney→ureter→bladder are paired (left + right ureter) */
 const BR=[];const loc=(k,v)=>v.clone().sub(C[k]);
-for(let k=0;k<4;k++){const a=angTo(k,k+1),b=angTo(k+1,k);const A0=C[k].clone().add(P(a,IR-.4,.66)),B0=C[k+1].clone().add(P(b,IR-.4,.66));
+for(let k=0;k<4;k++){const a=angTo(k,k+1),b=angTo(k+1,k);const A0=C[k].clone().add(P(a,rimR(k,a)-.45,.66)),B0=C[k+1].clone().add(P(b,rimR(k+1,b)-.45,.66));
   const D=B0.clone().sub(A0),N=V(-D.z,0,D.x).normalize(),sides=k<2?[-.75,.75]:[0];BR[k]={A:{},B:{},N};
   sides.forEach(sd=>{const A=A0.clone().addScaledVector(N,sd),B=B0.clone().addScaledVector(N,sd);BR[k].A[sd]=A;BR[k].B[sd]=B;
     const mid=A.clone().lerp(B,.5);mid.y=3.2;const A2=A.clone().lerp(B,.2);A2.y=2.2;const B2=A.clone().lerp(B,.8);B2.y=2.2;
@@ -374,7 +416,7 @@ function sign(parent,x,z,text,color){const g=new THREE.Group();g.position.set(x,
 let wfOrigin,wfDir;
 (function(){const k=4,g=groups[k],ain=angTo(4,3),aout=ain+Math.PI,side=ain+Math.PI/2;
   /* urethra: a thicker water pipe with metal couplings */
-  const uc=tube([loc(4,BR[3].B[0]),P(ain,2.5,.85),V(0,.85,0),P(aout,2.5,.85),P(aout,IR-.2,.8),P(aout,IR+.1,.55)],.42,g,7,.14);
+  const uc=tube([loc(4,BR[3].B[0]),P(ain,2.5,.85),V(0,.85,0),P(aout,2.5,.85),P(aout,rimR(4,aout)-.2,.8),P(aout,rimR(4,aout)+.1,.55)],.42,g,7,.14);
   const cm=M(0xb8c4d6,{metalness:.65,roughness:.3});[.12,.3,.7,.86].forEach(u=>{const p=uc.getPointAt(u),t=uc.getTangentAt(u);const r=mesh(new THREE.TorusGeometry(.47,.09,8,20),cm,p.x,p.y,p.z,g);r.lookAt(p.clone().add(t));});
   /* sphincter arch gate */
   const arch=new THREE.Group();arch.rotation.y=-aout+Math.PI/2;g.add(arch);
@@ -390,7 +432,7 @@ let wfOrigin,wfDir;
   mesh(new THREE.SphereGeometry(.6,18,14),snowMat,0,.5,0,sm);mesh(new THREE.SphereGeometry(.42,18,14),snowMat,0,1.25,0,sm);mesh(new THREE.SphereGeometry(.3,16,12),snowMat,0,1.82,0,sm);
   const n=mesh(new THREE.ConeGeometry(.06,.35,8),M(0xff8a2b),0,1.82,.42,sm);n.rotation.x=Math.PI/2;const sc=mesh(new THREE.TorusGeometry(.3,.08,8,20),M(0xc8323c),0,1.55,0,sm);sc.rotation.x=Math.PI/2;
   [-.1,.1].forEach(x=>mesh(new THREE.SphereGeometry(.04,8,6),M(0x111111),x,1.9,.27,sm,false));
-  wfOrigin=C[4].clone().add(P(aout,IR+.15,.5));wfDir=V(Math.cos(aout),0,Math.sin(aout));
+  wfOrigin=C[4].clone().add(P(aout,rimR(4,aout)+.15,.5));wfDir=V(Math.cos(aout),0,Math.sin(aout));
   label('尿道瀑布 · 一路通',scene,wfOrigin.x,2.1,wfOrigin.z,.5,'#5cc4ff');
 })();
 /* waterfall particles (world) */
@@ -616,11 +658,12 @@ function drive(dt){const w=2.4;
 function resize(){const w=window.innerWidth,h=window.innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
 resize();window.addEventListener('resize',resize);
 const asp=()=>window.innerWidth/window.innerHeight;
-const followDist=()=>asp()<1?Math.min(50,22/asp()*.95):26, overviewDist=()=>asp()<1?Math.min(135,60/asp()*.95):74;
-let overview=false,zoomGoal=null;const goal=V(0,1.5,0);
+const followDist=()=>asp()<1?Math.min(50,22/asp()*.95):26, WB=(()=>{let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;LAND.forEach((L,k)=>L.main.forEach(([x,y])=>{x0=Math.min(x0,C[k].x+x);x1=Math.max(x1,C[k].x+x);z0=Math.min(z0,C[k].z-y);z1=Math.max(z1,C[k].z-y);}));return {cx:(x0+x1)/2,cz:(z0+z1)/2,ext:Math.max(x1-x0,z1-z0)};})(),
+  overviewDist=()=>Math.min(195,Math.max(70,WB.ext*.56/(.414*Math.min(1,asp()))));
+let overview=false,zoomGoal=null,dirGoal=null;const goal=V(0,1.5,0);
 controls.target.copy(C[0]).setY(2.6);camera.position.copy(controls.target).add(V(0,.5,1).normalize().multiplyScalar(followDist()));
 const btnView=document.getElementById('btnView');
-btnView.onclick=()=>{overview=!overview;btnView.setAttribute('aria-pressed',String(overview));btnView.textContent=overview?'跟隨聖誕老人':'看全景';zoomGoal=overview?overviewDist():followDist();};
+btnView.onclick=()=>{overview=!overview;btnView.setAttribute('aria-pressed',String(overview));btnView.textContent=overview?'跟隨雪橇':'看全景';zoomGoal=overview?overviewDist():followDist();dirGoal=overview?V(.05,.93,.36).normalize():V(0,.45,1).normalize();};
 let userSpin=!reduce;const btnSpin=document.getElementById('btnSpin');const spinTxt=()=>{btnSpin.setAttribute('aria-pressed',String(userSpin));btnSpin.textContent=userSpin?'暫停旋轉':'開始旋轉';};spinTxt();
 btnSpin.onclick=()=>{userSpin=!userSpin;spinTxt();};
 
@@ -677,9 +720,11 @@ function animate(){
   for(let i=0;i<TR;i++){if(trLife[i]<=0)continue;const f=Math.max(0,trLife[i]-dt*.5),r=f/trLife[i];trLife[i]=f;trCol[i*3]*=r;trCol[i*3+1]*=r;trCol[i*3+2]*=r;trPos[i*3+1]-=dt*.4;}
   trGeo.attributes.position.needsUpdate=true;trGeo.attributes.color.needsUpdate=true;
   /* camera target easing */
-  if(overview)goal.set(0,0,2);else goal.copy(C[curIsland]).setY(2.6);
+  if(overview)goal.set(WB.cx,0,WB.cz);else goal.copy(C[curIsland]).setY(2.6);
   prevT.copy(controls.target);controls.target.lerp(goal,Math.min(1,dt*1.6));camera.position.add(tmp.copy(controls.target).sub(prevT));
+  if(dirGoal){const off=camera.position.clone().sub(controls.target),L=off.length(),nd=off.normalize().lerp(dirGoal,Math.min(1,dt*2.2)).normalize();camera.position.copy(controls.target).addScaledVector(nd,L);if(nd.distanceTo(dirGoal)<.01)dirGoal=null;}
   if(zoomGoal!==null){const off=camera.position.clone().sub(controls.target);const d=off.length(),nd=d+(zoomGoal-d)*Math.min(1,dt*2.5);camera.position.copy(controls.target).add(off.setLength(nd));if(Math.abs(zoomGoal-nd)<.3)zoomGoal=null;}
+  {const cd=camera.position.distanceTo(controls.target);scene.fog.near=cd+25;scene.fog.far=cd+130;}
   controls.update();renderer.render(scene,camera);requestAnimationFrame(animate);
 }
 animate();
