@@ -1,0 +1,483 @@
+<title>泌尿順起來</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+/* Layout: full-bleed WebGL stage (single dark "inside the body" look); lower-third captions bottom-left, uroflow gauge top-right, transport bar pinned to the bottom edge */
+:root{
+  --ink:#06161f;
+  --panel:rgba(8,30,40,.72);
+  --line:rgba(150,214,222,.22);
+  --paper:#eaf5f4;
+  --muted:#9fc0c5;
+  --urine:#ffc94a;
+  --flow:#5fd6e0;
+  --alert:#ff7a63;
+  --display:"Huninn","Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --barH:96px;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--ink);color:var(--paper);font-family:var(--body);overflow:hidden;-webkit-tap-highlight-color:transparent}
+#stage{position:fixed;inset:0}
+#gl{display:block;width:100%;height:100%}
+
+/* title + ending */
+.hero{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;pointer-events:none;padding-inline:max(16px,env(safe-area-inset-left,0px)) max(16px,env(safe-area-inset-right,0px));padding-bottom:var(--barH)}
+.big{font-family:var(--display);font-size:clamp(52px,12vw,140px);line-height:1;letter-spacing:.04em;display:flex;gap:.02em}
+.big span{display:inline-block;background:linear-gradient(100deg,var(--urine) 0%,#fff3c4 30%,var(--flow) 60%,var(--urine) 100%);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 6px 24px rgba(255,201,74,.25))}
+.hero .sub{font-size:clamp(15px,2.2vw,22px);color:var(--paper);max-width:32em;text-wrap:balance}
+#ending::before{content:"";position:absolute;left:50%;top:calc(50% - var(--barH)/2);width:min(900px,120vw);height:min(420px,70vh);transform:translate(-50%,-50%);background:radial-gradient(closest-side,rgba(4,14,20,.82),rgba(4,14,20,0));z-index:-1}
+#ending{z-index:0}
+.hero .tiny{font-size:12px;color:var(--muted);letter-spacing:.06em}
+
+/* captions */
+#cap{position:absolute;left:max(16px,env(safe-area-inset-left,0px));bottom:calc(var(--barH) + 16px);width:min(560px,calc(100% - 32px));pointer-events:none;display:flex;flex-direction:column;gap:8px}
+#cap .k{font-size:12px;font-weight:700;letter-spacing:.16em;color:var(--flow)}
+#cap h2{margin:0;font-family:var(--display);font-weight:400;font-size:clamp(26px,4.4vw,46px);line-height:1.15;text-wrap:balance;text-shadow:0 2px 18px rgba(0,0,0,.6)}
+#cap p{margin:0;font-size:clamp(14px,1.7vw,18px);line-height:1.65;max-width:34em;text-shadow:0 1px 10px rgba(0,0,0,.8)}
+#chips{display:flex;flex-wrap:wrap;gap:6px}
+#chips span{font-size:13px;padding:4px 10px;border-radius:999px;border:1px solid var(--alert);color:#ffd4ca;background:rgba(255,122,99,.12)}
+
+/* 3D labels */
+.lab{position:absolute;left:0;top:0;font-size:13px;font-weight:500;padding:3px 9px 3px 8px;border-radius:6px;background:var(--panel);border:1px solid var(--line);white-space:nowrap;pointer-events:none;display:flex;align-items:center;gap:6px}
+.lab::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--flow)}
+
+/* uroflow gauge */
+#uf{position:absolute;top:max(12px,env(safe-area-inset-top,0px));right:max(16px,env(safe-area-inset-right,0px));background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px 6px;pointer-events:none;width:min(230px,44vw)}
+#uf .h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:11px;color:var(--muted);letter-spacing:.06em}
+#uf .q{font-variant-numeric:tabular-nums;font-weight:700;font-size:13px}
+#ufc{display:block;width:100%;height:auto;aspect-ratio:2/1}
+
+/* transport */
+#bar{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;gap:12px;padding-top:10px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));background:linear-gradient(to top,rgba(4,14,20,.92),rgba(4,14,20,.55) 70%,transparent)}
+#bar button{font:inherit;color:var(--paper);background:var(--panel);border:1px solid var(--line);border-radius:999px;cursor:pointer}
+#bar button:focus-visible,#seek:focus-visible{outline:2px solid var(--urine);outline-offset:2px}
+#play{width:44px;height:44px;flex:none;display:grid;place-items:center}
+#play svg{width:18px;height:18px;fill:var(--paper)}
+.mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+#seek{width:100%;accent-color:var(--urine);margin:0}
+#chap{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+#chap::-webkit-scrollbar{display:none}
+#chap button{font-size:12px;padding:3px 10px;white-space:nowrap;color:var(--muted)}
+#chap button.on{color:var(--ink);background:var(--urine);border-color:var(--urine)}
+.side{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:none}
+#time{font-size:12px;font-variant-numeric:tabular-nums;color:var(--muted)}
+#music{font-size:12px;padding:4px 10px}
+#music[aria-pressed="true"]{border-color:var(--flow);color:var(--flow)}
+body.render #bar{display:none}
+body.render{--barH:0px}
+@media (max-width:560px){ .lab{font-size:12px} #cap p{font-size:14px} }
+</style>
+
+<div id="stage">
+  <canvas id="gl" aria-label="泌尿道 3D 動畫"></canvas>
+
+  <div class="hero" id="title">
+    <div class="big" id="bigT"></div>
+    <div class="sub">一分鐘看懂：尿從哪裡來、為什麼卡住、怎麼讓它順</div>
+  </div>
+
+  <div class="hero" id="ending">
+    <div class="big" id="bigE"></div>
+    <div class="sub">排尿不順別硬撐，早評估、早改善</div>
+    <div class="tiny">衛教示意動畫・不取代醫師診療</div>
+  </div>
+
+  <div id="cap" aria-live="polite">
+    <div class="k" id="capK"></div>
+    <h2 id="capH"></h2>
+    <p id="capP"></p>
+    <div id="chips"></div>
+  </div>
+
+  <div id="labels"></div>
+
+  <div id="uf">
+    <div class="h"><span>尿流速 Q (mL/s)</span><span class="q" id="ufq">Qmax —</span></div>
+    <canvas id="ufc" width="460" height="230"></canvas>
+  </div>
+
+  <div id="bar">
+    <button id="play" aria-label="暫停"><svg viewBox="0 0 20 20" id="playIco"></svg></button>
+    <div class="mid">
+      <input id="seek" type="range" min="0" max="60" step="0.05" value="0" aria-label="播放進度">
+      <div id="chap"></div>
+    </div>
+    <div class="side">
+      <span id="time">00:00 / 01:00</span>
+      <button id="music" aria-pressed="false">♪ 音樂</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+const DUR = 60;
+const RENDER = !!window.__RENDER;
+if (RENDER) document.body.classList.add('render');
+
+/* ---------- helpers ---------- */
+const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
+const ss=(a,b,x)=>{x=clamp((x-a)/(b-a),0,1);return x*x*(3-2*x)};
+const win=(t,a,b,f=0.5)=>ss(a,a+f,t)*(1-ss(b-f,b,t));
+const lerp=(a,b,k)=>a+(b-a)*k;
+const fract=x=>x-Math.floor(x);
+const V=(x,y,z)=>new THREE.Vector3(x,y,z);
+
+/* ---------- renderer / scene ---------- */
+const canvas=document.getElementById('gl');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,preserveDrawingBuffer:RENDER});
+renderer.setPixelRatio(RENDER?1:Math.min(window.devicePixelRatio||1,2));
+renderer.outputEncoding=THREE.sRGBEncoding;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.15;
+const scene=new THREE.Scene();
+scene.fog=new THREE.Fog(0x06161f,18,60);
+const camera=new THREE.PerspectiveCamera(40,1,0.1,200);
+
+scene.add(new THREE.HemisphereLight(0xcff4ff,0x1a2a33,0.75));
+const key=new THREE.DirectionalLight(0xfff0d8,1.15); key.position.set(5,8,8); scene.add(key);
+const rim=new THREE.DirectionalLight(0x5fd6e0,0.9); rim.position.set(-7,3,-6); scene.add(rim);
+const warm=new THREE.PointLight(0xffc94a,0,7,2); scene.add(warm);
+
+// backdrop gradient dome
+scene.add(new THREE.Mesh(new THREE.SphereGeometry(90,32,16),new THREE.ShaderMaterial({
+  side:THREE.BackSide,depthWrite:false,
+  vertexShader:'varying vec3 vP;void main(){vP=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+  fragmentShader:'varying vec3 vP;void main(){float h=vP.y*.5+.5;vec3 a=vec3(.015,.05,.07);vec3 b=vec3(.05,.16,.2);vec3 c=mix(a,b,smoothstep(.15,.95,h));c+=vec3(.06,.04,.0)*pow(max(0.,1.-abs(vP.y+.2)*2.),3.);gl_FragColor=vec4(c,1.);}'
+})));
+
+/* ---------- materials ---------- */
+const mKidney=new THREE.MeshPhysicalMaterial({color:0x8e2f2a,roughness:.42,clearcoat:.6,clearcoatRoughness:.3,emissive:0x6a1410,emissiveIntensity:.15});
+const mTube=new THREE.MeshPhysicalMaterial({color:0xf2b38a,roughness:.3,clearcoat:.8,transparent:true,opacity:.42,depthWrite:false});
+const mArtery=new THREE.MeshStandardMaterial({color:0xc2343a,roughness:.4,transparent:true,opacity:.55,depthWrite:false});
+const mBone=new THREE.MeshStandardMaterial({color:0xd9d2c3,roughness:.8,transparent:true,opacity:.16,depthWrite:false});
+const mUrine=new THREE.MeshStandardMaterial({color:0xffb21e,emissive:0xe08a00,emissiveIntensity:.55,roughness:.2});
+const mBlood=new THREE.MeshStandardMaterial({color:0xff4a4a,emissive:0xb01818,emissiveIntensity:.7,roughness:.3});
+
+/* ---------- spine (context) ---------- */
+for(let i=0;i<11;i++){
+  const v=new THREE.Mesh(new THREE.CylinderGeometry(.34,.34,.3,24),mBone);
+  v.position.set(0,3.9-i*.56,-1.55); scene.add(v);
+}
+
+/* ---------- kidneys ---------- */
+function kidneyGeo(side){
+  const g=new THREE.SphereGeometry(1,64,40),p=g.attributes.position,v=new THREE.Vector3(),m=-side;
+  for(let i=0;i<p.count;i++){
+    v.fromBufferAttribute(p,i);
+    const med=Math.max(0,v.x*m);
+    const dent=.34*Math.exp(-(v.y*v.y)/.09)*med*med;
+    p.setXYZ(i,v.x*.52-m*dent,v.y*.95,v.z*.38);
+  }
+  g.computeVertexNormals();return g;
+}
+const kidneys=[],KC={};
+[-1,1].forEach(side=>{
+  const k=new THREE.Mesh(kidneyGeo(side),mKidney);
+  k.position.set(side*1.65,2.25,-.45); k.rotation.z=side*.2; k.rotation.y=side*.25;
+  scene.add(k); kidneys.push(k); KC[side]=k.position.clone();
+});
+
+/* ---------- vessels ---------- */
+const aorta=new THREE.CatmullRomCurve3([V(0,4.8,-.85),V(0,2.4,-.85),V(0,-1.4,-.85)]);
+scene.add(new THREE.Mesh(new THREE.TubeGeometry(aorta,40,.16,16),mArtery));
+const bloodPaths={};
+[-1,1].forEach(s=>{
+  const renal=new THREE.CatmullRomCurve3([V(0,2.35,-.85),V(s*.7,2.3,-.7),V(s*1.25,2.25,-.5)]);
+  scene.add(new THREE.Mesh(new THREE.TubeGeometry(renal,20,.07,12),mArtery));
+  bloodPaths[s]=new THREE.CatmullRomCurve3([V(0,4.8,-.85),V(0,3.2,-.85),V(0,2.45,-.85),V(s*.7,2.3,-.7),V(s*1.4,2.25,-.47),V(s*1.7,2.3,-.45)]);
+});
+
+/* ---------- ureters ---------- */
+const ureters={};
+[-1,1].forEach(s=>{
+  const c=new THREE.CatmullRomCurve3([V(s*1.6,2.2,-.45),V(s*1.3,2.0,-.4),V(s*1.02,1.3,-.48),V(s*.92,.2,-.52),V(s*.86,-.8,-.36),V(s*.52,-1.48,-.02)]);
+  ureters[s]=c;
+  scene.add(new THREE.Mesh(new THREE.TubeGeometry(c,80,.078,14),mTube));
+  const pelvis=new THREE.Mesh(new THREE.SphereGeometry(.17,20,14),mTube);
+  pelvis.position.copy(c.getPoint(.06)); pelvis.scale.set(1,1.4,.8); scene.add(pelvis);
+});
+const rings=[];
+const mRing=new THREE.MeshStandardMaterial({color:0xf5c0a0,emissive:0xff8a50,emissiveIntensity:.5,roughness:.4});
+[-1,1].forEach(s=>{for(let b=0;b<5;b++){const r=new THREE.Mesh(new THREE.TorusGeometry(.09,.026,10,28),mRing);r.userData={s,b};scene.add(r);rings.push(r);}});
+
+/* ---------- bladder ---------- */
+const NECK=-2.2;
+const mBlad=new THREE.MeshPhysicalMaterial({color:0xf0a3a0,roughness:.25,clearcoat:1,transparent:true,opacity:.28,side:THREE.DoubleSide,depthWrite:false});
+const bladder=new THREE.Mesh(new THREE.SphereGeometry(1,64,48),mBlad); bladder.renderOrder=3;
+const net=new THREE.Mesh(new THREE.IcosahedronGeometry(1.01,3),new THREE.MeshBasicMaterial({color:0xf7b9b0,wireframe:true,transparent:true,opacity:.16,depthWrite:false})); net.renderOrder=4;
+const mPee=new THREE.MeshStandardMaterial({color:0xf0a010,emissive:0x7a4a00,emissiveIntensity:.3,roughness:.15,transparent:true,opacity:.5,depthWrite:false});
+const pee=new THREE.Mesh(new THREE.SphereGeometry(1,48,32),mPee); pee.renderOrder=2;
+scene.add(pee,bladder,net);
+
+/* ---------- prostate + urethra ---------- */
+const mPros=new THREE.MeshPhysicalMaterial({color:0xc98270,roughness:.5,clearcoat:.4,transparent:true,opacity:.62,depthWrite:false,emissive:0xff3020,emissiveIntensity:0});
+const prostate=new THREE.Mesh(new THREE.SphereGeometry(.38,40,28),mPros); prostate.position.set(0,-2.62,.32); prostate.renderOrder=5; scene.add(prostate);
+const urethraC=new THREE.CatmullRomCurve3([V(0,-2.15,.3),V(0,-2.6,.32),V(0,-3.0,.33),V(0,-3.35,.4),V(0,-3.7,.65),V(0,-3.92,1.1),V(0,-4.0,1.7)]);
+scene.add(new THREE.Mesh(new THREE.TubeGeometry(urethraC,80,.058,12),mTube));
+// prostatic segment drawn separately so it can be squeezed
+const prosSegGeo=new THREE.TubeGeometry(new THREE.CatmullRomCurve3([V(0,-2.2,0),V(0,-2.62,.02),V(0,-3.02,.03)]),20,.085,14);
+const prosSeg=new THREE.Mesh(prosSegGeo,new THREE.MeshStandardMaterial({color:0xffd27a,emissive:0xaa6a00,emissiveIntensity:.4,transparent:true,opacity:.7,depthWrite:false}));
+prosSeg.position.z=.3; prosSeg.renderOrder=4; scene.add(prosSeg);
+const MEATUS=urethraC.getPoint(1);
+const SDIR=V(0,-.22,1).normalize();
+const FLOOR=-6.3;
+
+/* water surface + ripples */
+const pool=new THREE.Mesh(new THREE.CircleGeometry(1.7,64),new THREE.MeshStandardMaterial({color:0x17586a,emissive:0x0b3542,emissiveIntensity:.8,roughness:.1,transparent:true,opacity:0,depthWrite:false}));
+pool.rotation.x=-Math.PI/2; scene.add(pool);
+const ripples=[];
+for(let i=0;i<4;i++){const r=new THREE.Mesh(new THREE.RingGeometry(.9,1,48),new THREE.MeshBasicMaterial({color:0xffe2a0,transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide}));r.rotation.x=-Math.PI/2;scene.add(r);ripples.push(r);}
+
+/* ---------- particles ---------- */
+const NU=40, NUR=28, NST=120, NB=34;
+const urineP=new THREE.InstancedMesh(new THREE.SphereGeometry(.045,10,8),mUrine,NU*2+NUR+NST); scene.add(urineP);
+const bloodP=new THREE.InstancedMesh(new THREE.SphereGeometry(.04,8,6),mBlood,NB*2); scene.add(bloodP);
+const dummy=new THREE.Object3D();
+function put(mesh,i,p,s){dummy.position.copy(p);dummy.scale.setScalar(Math.max(s,1e-4));dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);}
+
+// ambient motes
+const NM=320,mg=new THREE.BufferGeometry(),mBase=new Float32Array(NM*3),mPos=new Float32Array(NM*3);
+let seed=7;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647;};
+for(let i=0;i<NM;i++){mBase[i*3]=(rnd()-.5)*24;mBase[i*3+1]=rnd()*18;mBase[i*3+2]=(rnd()-.5)*18-3;}
+mg.setAttribute('position',new THREE.BufferAttribute(mPos,3));
+scene.add(new THREE.Points(mg,new THREE.PointsMaterial({color:0x7fe6ee,size:.06,transparent:true,opacity:.5,depthWrite:false})));
+
+/* ---------- timeline functions ---------- */
+const fill=t=>.18+.82*ss(17,32,t)-.15*ss(34,51,t)-.68*ss(52,59.5,t);
+const pScale=t=>1+.78*ss(33.5,36,t)-.74*ss(51.3,53.3,t);
+const strength=t=>lerp(.12,1,ss(51.5,53.6,t));
+const flowAmt=t=>{
+  const on=ss(33.8,34.6,t);
+  const weak=.3*(.55+.45*Math.sin(t*4.3));
+  return on*lerp(weak,1,ss(51.5,53.6,t));
+};
+
+/* ---------- camera shots ---------- */
+const shots=[
+ [0,  [0,.4,17],   [0,-.9,0]],
+ [6.3,[3.6,1.2,12.5],[0,-.6,0]],
+ [9,  [-4.7,3.5,4.7],[-1.4,2.1,-.4]],
+ [16, [-3.7,2.9,5.3],[-1.2,1.9,-.4]],
+ [18.5,[5.3,1.4,6.3],[.3,.3,-.3]],
+ [24, [4.7,.3,6.7], [.2,-.2,-.2]],
+ [26.5,[2.9,-.5,4.9],[0,-1.4,.3]],
+ [32, [1.9,-.9,5.3],[0,-1.5,.3]],
+ [34.5,[2.5,-2.3,3.3],[0,-2.75,.4]],
+ [41, [3.0,-2.6,3.1],[0,-2.9,.5]],
+ [43.5,[7.6,-2.4,6.6],[0,-4.3,2.2]],
+ [53, [7.0,-2.9,7.4],[0,-4.5,2.4]],
+ [56.5,[8.6,.6,13.2],[0,-2.2,.9]],
+ [60, [5.6,1.3,14.6],[0,-2.0,.6]],
+];
+const cp=new THREE.Vector3(),cl=new THREE.Vector3(),ca=new THREE.Vector3(),cb=new THREE.Vector3();
+function cameraAt(t){
+  let i=0;while(i<shots.length-2&&t>shots[i+1][0])i++;
+  const a=shots[i],b=shots[i+1],k=ss(a[0],b[0],t);
+  cp.set(lerp(a[1][0],b[1][0],k),lerp(a[1][1],b[1][1],k),lerp(a[1][2],b[1][2],k));
+  cl.set(lerp(a[2][0],b[2][0],k),lerp(a[2][1],b[2][1],k),lerp(a[2][2],b[2][2],k));
+  cp.x+=Math.sin(t*.35)*.25; cp.y+=Math.sin(t*.27)*.15;
+  const asp=camera.aspect; if(asp<1.35){const f=Math.pow(1.35/asp,.65);cp.sub(cl).multiplyScalar(f).add(cl);}
+  camera.position.copy(cp); camera.lookAt(cl);
+}
+
+/* ---------- overlays ---------- */
+const caps=[
+ {a:7.5,b:16.5,k:'01 · 腎臟',h:'24 小時不打烊的濾水廠',p:'每天過濾約 180 公升血漿，99% 回收，最後只留下 1–2 公升尿液。'},
+ {a:17,b:24.6,k:'02 · 輸尿管',h:'一波一波往下送',p:'平滑肌蠕動波每分鐘約 2–6 次，把尿推進膀胱。結石卡在這裡，就是腎絞痛。'},
+ {a:25,b:32.6,k:'03 · 膀胱',h:'能屈能伸的儲尿袋',p:'約 150–250 mL 開始有尿意，正常成人容量約 400–500 mL。'},
+ {a:33,b:41.7,k:'04 · 出口',h:'不順，常常卡在這裡',p:'攝護腺肥大、尿道狹窄、膀胱收縮無力，都會讓尿流變細、斷斷續續、解不乾淨。',chips:['尿流細弱','要用力才解得出','解完還想解','夜尿']},
+ {a:42,b:45,k:'順起來 1 / 4',h:'水分喝夠，分次喝',p:'睡前 2 小時少喝。心臟、腎臟衰竭者，喝水量請依醫囑。'},
+ {a:45,b:48,k:'順起來 2 / 4',h:'別久憋，也別一直提早跑',p:'有尿意再去，放鬆、慢慢解乾淨。'},
+ {a:48,b:51,k:'順起來 3 / 4',h:'咖啡因、酒精減量',p:'傍晚之後更要少，有助減少尿急與夜尿。'},
+ {a:51,b:54.3,k:'順起來 4 / 4',h:'症狀持續，找泌尿科',p:'尿流速、餘尿超音波、IPSS 問卷，找出原因再對症治療。'},
+];
+const capEl=document.getElementById('cap'),capK=document.getElementById('capK'),capH=document.getElementById('capH'),capP=document.getElementById('capP'),chipsEl=document.getElementById('chips');
+let capIdx=-2;
+function setCap(i){
+  if(i===capIdx)return;capIdx=i;const c=caps[i];
+  capK.textContent=c?c.k:'';capH.textContent=c?c.h:'';capP.textContent=c?c.p:'';
+  chipsEl.innerHTML='';if(c&&c.chips)c.chips.forEach(x=>{const s=document.createElement('span');s.textContent=x;chipsEl.appendChild(s);});
+}
+function bigText(el,str){[...str].forEach(ch=>{const s=document.createElement('span');s.textContent=ch;el.appendChild(s);});return [...el.children];}
+const titleEl=document.getElementById('title'),endEl=document.getElementById('ending');
+const tChars=bigText(document.getElementById('bigT'),'泌尿順起來');
+const eChars=bigText(document.getElementById('bigE'),'泌尿順起來！');
+function waveChars(chars,t,amp){chars.forEach((s,i)=>{s.style.transform=`translateY(${(Math.sin(t*2.4-i*.75)*amp).toFixed(2)}px)`;s.style.backgroundPosition=`${(fract(t*.18+i*.06)*300).toFixed(1)}% 0`;});}
+
+const labDefs=[
+ {txt:'腎臟',pos:()=>V(-1.75,3.35,-.45),vis:t=>win(t,8.6,16.4)},
+ {txt:'腎動脈',pos:()=>V(.75,2.62,-.7),vis:t=>win(t,9.5,16.4)},
+ {txt:'輸尿管',pos:()=>V(1.12,.6,-.5),vis:t=>win(t,17.6,24.5)},
+ {txt:'膀胱',pos:t=>V(.0,NECK+bladR(t)*1.9+.15,.3),vis:t=>win(t,25.6,32.5)},
+ {txt:'攝護腺',pos:()=>V(.5,-2.55,.32),vis:t=>win(t,34,41.6)},
+ {txt:'尿道',pos:()=>V(0,-3.78,.75),vis:t=>win(t,34.6,41.6)},
+];
+const labWrap=document.getElementById('labels');
+labDefs.forEach(d=>{d.el=document.createElement('div');d.el.className='lab';d.el.textContent=d.txt;labWrap.appendChild(d.el);});
+const bladR=t=>.55+.5*fill(t);
+
+/* uroflow chart */
+const uf=document.getElementById('uf'),ufc=document.getElementById('ufc'),ufx=ufc.getContext('2d'),ufq=document.getElementById('ufq');
+const qWeak=s=>7.5*ss(0,4,s)*(1-ss(24,30,s))*(.78+.22*Math.sin(s*1.9))*(.7+.3*Math.abs(Math.cos(s*.6)));
+const qNorm=s=>s<0||s>22?0:20*Math.pow(Math.sin(Math.PI*s/22),1.3);
+function drawUF(t){
+  const W=ufc.width,H=ufc.height,L=34,B=H-26,R=W-8,T=10;
+  const X=s=>L+(R-L)*s/30,Y=q=>B-(B-T)*q/25;
+  ufx.clearRect(0,0,W,H);
+  ufx.font='18px "Noto Sans TC",sans-serif';ufx.fillStyle='#9fc0c5';ufx.strokeStyle='rgba(150,214,222,.25)';ufx.lineWidth=1.5;
+  ufx.beginPath();ufx.moveTo(L,T);ufx.lineTo(L,B);ufx.lineTo(R,B);ufx.stroke();
+  [0,10,20].forEach(q=>{ufx.fillText(q,4,Y(q)+6);});
+  [0,10,20,30].forEach(s=>{ufx.fillText(s,X(s)-6,H-4);});
+  ufx.save();ufx.setLineDash([6,6]);ufx.strokeStyle='rgba(234,245,244,.45)';ufx.beginPath();ufx.moveTo(L,Y(15));ufx.lineTo(R,Y(15));ufx.stroke();ufx.restore();
+  ufx.fillStyle='rgba(234,245,244,.6)';ufx.fillText('15',R-24,Y(15)-6);
+  const pw=clamp((t-33.8)/(41.5-33.8),0,1),pn=clamp((t-52)/(59-52),0,1);
+  const line=(f,end,col,w)=>{if(end<=0)return;ufx.strokeStyle=col;ufx.lineWidth=w;ufx.beginPath();for(let s=0;s<=end;s+=.2){const x=X(s),y=Y(f(s));s?ufx.lineTo(x,y):ufx.moveTo(x,y);}ufx.stroke();};
+  line(qWeak,pw*30,pn>0?'rgba(255,122,99,.45)':'#ff7a63',3.5);
+  line(qNorm,pn*22,'#ffc94a',4);
+  if(pn>0){ufq.textContent='Qmax ≈ 20';ufq.style.color='var(--urine)';}
+  else if(pw>0){ufq.textContent='Qmax ≈ 8';ufq.style.color='var(--alert)';}
+  else{ufq.textContent='Qmax —';ufq.style.color='';}
+}
+
+/* ---------- frame ---------- */
+const tmp=new THREE.Vector3(),tan=new THREE.Vector3(),ZA=V(0,0,1);
+let W=1,H=1;
+function resize(){
+  W=window.innerWidth;H=window.innerHeight;
+  renderer.setSize(W,H,false);camera.aspect=W/H;camera.updateProjectionMatrix();
+  const bar=document.getElementById('bar');
+  document.documentElement.style.setProperty('--barH',(RENDER?0:bar.offsetHeight)+'px');
+}
+window.addEventListener('resize',resize);
+
+function renderAt(t){
+  // kidneys
+  mKidney.emissiveIntensity=.12+.4*win(t,7.5,16.5)*(.5+.5*Math.sin(t*4));
+  kidneys.forEach((k,i)=>{k.scale.setScalar(1+.012*Math.sin(t*6+i));});
+
+  // blood
+  let bi=0;
+  [-1,1].forEach(s=>{for(let i=0;i<NB;i++){const u=fract(t*.32+i/NB);bloodPaths[s].getPointAt(u,tmp);put(bloodP,bi++,tmp,(.6+.4*win(t,7,17,1))*(u>.93?(1-u)/.07:1));}});
+  bloodP.instanceMatrix.needsUpdate=true;
+
+  // ureter boluses
+  let ui=0;const uOn=ss(7.6,9.2,t);
+  [-1,1].forEach(s=>{for(let i=0;i<NU;i++){const b=Math.floor(i/8),j=i%8;const u=fract(t*.16+b/5+(s>0?.1:0)-j*.012);ureters[s].getPointAt(u,tmp);put(urineP,ui++,tmp,uOn*(u<.05?u/.05:1));}});
+  rings.forEach(r=>{const {s,b}=r.userData;const u=clamp(fract(t*.16+b/5+(s>0?.1:0))+.018,0,1);ureters[s].getPointAt(u,tmp);ureters[s].getTangentAt(u,tan);r.position.copy(tmp);r.quaternion.setFromUnitVectors(ZA,tan);const sc=uOn*(1+.25*Math.sin(t*9+b))*(u<.08?u/.08:1);r.scale.setScalar(Math.max(sc,1e-4));});
+
+  // bladder
+  const R=bladR(t),fl=flowAmt(t),str=strength(t);
+  const strain=fl>.01?.015*Math.sin(t*9)*(1-str):0;
+  const cy=NECK+R*.92;
+  bladder.position.set(0,cy,.3);bladder.scale.set(R*1.05*(1+strain),R*.92*(1-strain),R*.95);
+  net.position.copy(bladder.position);net.scale.copy(bladder.scale);
+  pee.position.set(0,cy-R*.04,.3);pee.scale.set(R*.97,R*.86,R*.88);
+  mBlad.opacity=.24+.12*win(t,25,32.6);
+
+  // prostate
+  const ps=pScale(t);prostate.scale.set(ps,ps*.85,ps*.92);
+  mPros.emissiveIntensity=.45*ss(34,36,t)*(1-ss(51.2,53,t))*(.5+.5*Math.sin(t*5));
+  const nar=1/Math.pow(ps,1.6);prosSeg.scale.set(nar,1,nar);
+
+  // urethra + stream
+  const uSpeed=.35+1.5*str;
+  for(let k=0;k<NUR;k++){const u=fract(t*uSpeed+k/NUR);urethraC.getPointAt(u,tmp);put(urineP,ui++,tmp,fl>.02?.85:0);}
+  const v=.55+3.25*str,Lf=1.25,g=7;
+  const dens=clamp(fl*1.25,0,1);
+  for(let j=0;j<NST;j++){
+    const tau=fract(t/Lf+j/NST)*Lf;
+    tmp.copy(MEATUS).addScaledVector(SDIR,v*tau);tmp.y-=.5*g*tau*tau;
+    const vis=(fl>.02)&&((j%10)/10<dens)&&tmp.y>FLOOR;
+    put(urineP,ui++,tmp,vis?(.75+.35*str):0);
+  }
+  urineP.instanceMatrix.needsUpdate=true;
+  // landing point
+  const vy=SDIR.y*v,vz=SDIR.z*v,dy=MEATUS.y-FLOOR;
+  const tl=(vy+Math.sqrt(vy*vy+2*g*dy))/g;const lz=MEATUS.z+vz*tl;
+  const poolOn=win(t,33.6,61,1);
+  pool.position.set(0,FLOOR-.01,lz);pool.material.opacity=.55*poolOn;
+  ripples.forEach((r,i)=>{const f=fract(t*1.4+i/4);r.position.set(0,FLOOR+.005,lz);r.scale.setScalar(.12+f*(.5+.6*str));r.material.opacity=fl>.02?(1-f)*.7*Math.min(1,fl*2):0;});
+  warm.position.copy(MEATUS).add(V(0,-.4,.8));warm.intensity=2.2*fl;
+
+  // motes
+  for(let i=0;i<NM;i++){mPos[i*3]=mBase[i*3]+Math.sin(t*.3+i)*.2;mPos[i*3+1]=((mBase[i*3+1]+t*.25)%18)-9;mPos[i*3+2]=mBase[i*3+2];}
+  mg.attributes.position.needsUpdate=true;
+
+  cameraAt(t);
+  renderer.render(scene,camera);
+
+  // overlays
+  titleEl.style.opacity=(1-ss(5.8,6.9,t)).toFixed(3);
+  waveChars(tChars,t,8);
+  const eo=ss(54.4,55.6,t);endEl.style.opacity=eo.toFixed(3);
+  endEl.style.transform=`translateY(${((1-eo)*16).toFixed(1)}px)`;
+  waveChars(eChars,t,8);
+  let ci=-1,co=0;caps.forEach((c,i)=>{const w=win(t,c.a,c.b,.45);if(w>co){co=w;ci=i;}});
+  setCap(ci);capEl.style.opacity=co.toFixed(3);capEl.style.transform=`translateY(${((1-co)*10).toFixed(1)}px)`;
+  labDefs.forEach(d=>{const o=d.vis(t);if(o<.01){d.el.style.opacity=0;return;}tmp.copy(d.pos(t)).project(camera);
+    const x=(tmp.x*.5+.5)*W,y=(-tmp.y*.5+.5)*H;d.el.style.opacity=o.toFixed(3);d.el.style.transform=`translate(${(x+10).toFixed(1)}px,${(y-12).toFixed(1)}px)`;});
+  uf.style.opacity=win(t,33.4,61,.7).toFixed(3);
+  drawUF(t);
+}
+window.renderAt=renderAt;
+resize();
+
+if(RENDER){renderAt(0);return;}
+
+/* ---------- transport ---------- */
+const playBtn=document.getElementById('play'),ico=document.getElementById('playIco'),seek=document.getElementById('seek'),timeEl=document.getElementById('time'),chapEl=document.getElementById('chap'),musicBtn=document.getElementById('music');
+const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+let t=0,playing=!reduce,last=performance.now(),dragging=false;
+const chapters=[['開場',0],['腎臟',7.5],['輸尿管',17],['膀胱',25],['卡住了',33],['順起來',42],['結尾',54.4]];
+const chapBtns=chapters.map(([n,at])=>{const b=document.createElement('button');b.textContent=n;b.onclick=()=>{t=at;if(t>=DUR-.01)t=0;playing=true;sync();};chapEl.appendChild(b);return b;});
+function sync(){
+  ico.innerHTML=playing?'<rect x="4" y="3" width="4" height="14" rx="1"/><rect x="12" y="3" width="4" height="14" rx="1"/>':(t>=DUR-.01?'<path d="M10 3a7 7 0 1 1-6.6 4.7l1.9.7A5 5 0 1 0 10 5v2.5L6 4l4-3.5z"/>':'<path d="M5 3l12 7-12 7z"/>');
+  playBtn.setAttribute('aria-label',playing?'暫停':(t>=DUR-.01?'重新播放':'播放'));
+}
+playBtn.onclick=()=>{if(t>=DUR-.01)t=0;playing=!playing;last=performance.now();sync();if(playing&&musicOn)startMusic();};
+seek.addEventListener('input',()=>{t=+seek.value;dragging=true;});
+seek.addEventListener('change',()=>{dragging=false;});
+const fmt=s=>{s=Math.floor(s);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');};
+function loop(now){
+  const dt=Math.min(.1,(now-last)/1000);last=now;
+  if(playing&&!dragging){t+=dt;if(t>=DUR){t=DUR;playing=false;sync();}}
+  renderAt(t);
+  if(!dragging)seek.value=t;
+  timeEl.textContent=fmt(t)+' / 01:00';
+  let ch=0;chapters.forEach(([,at],i)=>{if(t>=at)ch=i;});chapBtns.forEach((b,i)=>b.classList.toggle('on',i===ch));
+  sched();
+  requestAnimationFrame(loop);
+}
+sync();requestAnimationFrame(loop);
+document.addEventListener('keydown',e=>{if(e.code==='Space'&&e.target.tagName!=='BUTTON'&&e.target.tagName!=='INPUT'){e.preventDefault();playBtn.click();}});
+
+/* ---------- music (Web Audio, starts on tap) ---------- */
+let ac=null,master=null,musicOn=false,nextT=0,step=0;
+const prog=[[60,64,67],[57,60,64],[53,57,60],[55,59,62]];
+const hz=n=>440*Math.pow(2,(n-69)/12);
+function note(f,when,dur,vol,type){const o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.value=f;g.gain.setValueAtTime(0,when);g.gain.linearRampToValueAtTime(vol,when+.02);g.gain.exponentialRampToValueAtTime(.0001,when+dur);o.connect(g);g.connect(master);o.start(when);o.stop(when+dur+.05);}
+function startMusic(){
+  try{
+    if(!ac){ac=new (window.AudioContext||window.webkitAudioContext)();const lp=ac.createBiquadFilter();lp.type='lowpass';lp.frequency.value=2400;master=ac.createGain();master.gain.value=.8;master.connect(lp);lp.connect(ac.destination);}
+    if(ac.state==='suspended')ac.resume();nextT=ac.currentTime+.05;
+  }catch(e){musicOn=false;musicBtn.setAttribute('aria-pressed','false');}
+}
+function sched(){
+  if(!musicOn||!playing||!ac)return;
+  const e=.3; // eighth note at 100 bpm
+  while(nextT<ac.currentTime+.3){
+    const bar=Math.floor(step/8)%4,s=step%8,ch=prog[bar];
+    if(s===0){ch.forEach(n=>note(hz(n-12),nextT,2.5,.045,'sine'));note(hz(ch[0]-24),nextT,2.4,.06,'sine');}
+    note(hz(ch[[0,1,2,1,2,0,2,1][s]]+12),nextT,.55,.05,'triangle');
+    if(s===3||s===7)note(hz(ch[2]+24),nextT,.25,.02,'sine');
+    nextT+=e;step++;
+  }
+}
+musicBtn.onclick=()=>{musicOn=!musicOn;musicBtn.setAttribute('aria-pressed',String(musicOn));if(musicOn){startMusic();}else if(ac){ac.suspend();}};
+})();
+</script>
