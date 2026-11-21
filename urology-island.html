@@ -64,8 +64,8 @@ button:focus-visible,.greet:focus-visible{outline:2px solid var(--gold);outline-
 .finale p{margin:10px 0 18px;font-size:14px;line-height:1.6;letter-spacing:.1em;color:var(--ink)}
 .finale button{pointer-events:auto;font:inherit;font-size:15px;font-weight:700;color:#fff;background:linear-gradient(180deg,#e0505a,#a8222c);border:1px solid rgba(255,255,255,.4);border-radius:999px;padding:10px 20px;cursor:pointer}
 .fgift{position:fixed;z-index:31;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:2px;transform:translate(-50%,-50%);transition:left 1.5s cubic-bezier(.3,.8,.3,1),top 1.5s cubic-bezier(.3,.8,.3,1);animation:bob 3.2s ease-in-out infinite}
-.fgift b{font-size:46px;line-height:1;filter:drop-shadow(0 0 10px rgba(242,193,78,.8))}
-.fgift small{font-size:12px;color:var(--snow);background:rgba(9,22,48,.7);border:1px solid var(--line);border-radius:999px;padding:2px 8px;white-space:nowrap}
+.fgift b{font-size:clamp(64px,17vw,104px);line-height:1;filter:drop-shadow(0 0 10px rgba(242,193,78,.8))}
+.fgift small{font-size:14px;font-weight:700;color:var(--snow);background:rgba(9,22,48,.7);border:1px solid var(--line);border-radius:999px;padding:2px 8px;white-space:nowrap}
 @keyframes bob{0%,100%{transform:translate(-50%,-50%) rotate(-6deg)}50%{transform:translate(-50%,calc(-50% - 16px)) rotate(6deg)}}
 @media (prefers-reduced-motion:reduce){.fgift{animation:none}}
 .hint{font-size:11px;color:var(--muted);letter-spacing:.06em}
@@ -544,7 +544,7 @@ function reward(j,batch){if(finaleOn||collected.length>=5)return;
   setTimeout(()=>{f.remove();slot.textContent=G.em;slot.style.setProperty('--c',ISL[j].color);slot.classList.add('full');slot.title=G.t+'（'+ISL[j].name+'）';slot.setAttribute('aria-label',G.t);
     const n=collected.length;setMsg('獲得「'+G.t+'」 <b>'+n+'/5</b>'+(n<5?' · 前往下一座島':''));if(n===5)setTimeout(showFinale,700);},850);}
 function showFinale(){finaleOn=true;hideGreet();finaleEl.hidden=false;requestAnimationFrame(()=>finaleEl.classList.add('on'));
-  const cx=innerWidth/2,cy=innerHeight*.45,rx=Math.min(innerWidth*.38,300),ry=Math.min(innerHeight*.3,230);
+  const cx=innerWidth/2,cy=innerHeight*.45,rx=Math.min(innerWidth*.33,340),ry=Math.min(innerHeight*.31,250);
   collected.forEach((c,i)=>{const r=slotEls[i].getBoundingClientRect(),el=document.createElement('div');el.className='fgift';el.innerHTML='<b>'+c.G.em+'</b><small>'+c.G.t+'</small>';
     el.style.left=(r.left+r.width/2)+'px';el.style.top=(r.top+r.height/2)+'px';el.style.animationDelay=(-i*.64)+'s';document.body.appendChild(el);fgifts.push(el);
     slotEls[i].textContent='';slotEls[i].classList.remove('full');
@@ -620,18 +620,22 @@ const NT={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
 const hz=n=>{const m=12*(+n[n.length-1]+1)+NT[n[0]]+(n[1]==='#'?1:n[1]==='b'?-1:0);return 440*Math.pow(2,(m-69)/12);};
 const seq=str=>str.trim().split(/\s+/).map(x=>{const [n,d]=x.split(':');return [n,+d];});
 const JB_A='E5:1 E5:1 E5:2 E5:1 E5:1 E5:2 E5:1 G5:1 C5:1.5 D5:.5 E5:4';
+const JB_CH=JB_A+' F5:1 F5:1 F5:1.5 F5:.5 F5:1 E5:1 E5:1 E5:.5 E5:.5 E5:1 D5:1 D5:1 E5:1 D5:2 G5:2 '+JB_A+' F5:1 F5:1 F5:1 F5:1 F5:1 E5:1 E5:1 E5:.5 E5:.5 G5:1 G5:1 F5:1 D5:1 C5:4';
+const JB_V='G4:1 E5:1 D5:1 C5:1 G4:3 G4:.5 G4:.5 G4:1 E5:1 D5:1 C5:1 A4:4 A4:1 F5:1 E5:1 D5:1 B4:4 G5:1 G5:1 F5:1 D5:1 E5:4 '+
+  'G4:1 E5:1 D5:1 C5:1 G4:4 G4:1 E5:1 D5:1 C5:1 A4:3 A4:1 A4:1 F5:1 E5:1 D5:1 G5:1 G5:1 G5:1 G5:1 A5:1 G5:1 F5:1 D5:1 C5:2 R:2';
+const WW_V='G4:1 C5:1 C5:.5 D5:.5 C5:.5 B4:.5 A4:1 A4:1 A4:1 D5:1 D5:.5 E5:.5 D5:.5 C5:.5 B4:1 G4:1 G4:1 E5:1 E5:.5 F5:.5 E5:.5 D5:.5 C5:1 A4:1 G4:.5 G4:.5 A4:1 D5:1 B4:1 C5:2';
+const WW_R='G4:1 C5:1 C5:1 C5:1 B4:2 B4:1 C5:1 B4:1 A4:1 G4:2 D5:1 E5:1 D5:1 C5:1 G5:1 G4:1 G4:.5 G4:.5 A4:1 D5:1 B4:1 C5:2';
 const SONGS=[
-  {name:'鈴兒響叮噹',beat:.27,bell:true,type:'triangle',notes:seq(JB_A+' F5:1 F5:1 F5:1.5 F5:.5 F5:1 E5:1 E5:1 E5:.5 E5:.5 E5:1 D5:1 D5:1 E5:1 D5:2 G5:2 '+JB_A+' F5:1 F5:1 F5:1 F5:1 F5:1 E5:1 E5:1 E5:.5 E5:.5 G5:1 G5:1 F5:1 D5:1 C5:4')},
-  {name:'祝你聖誕快樂',beat:.3,bell:false,type:'triangle',notes:seq('G4:1 C5:1 C5:.5 D5:.5 C5:.5 B4:.5 A4:1 A4:1 A4:1 D5:1 D5:.5 E5:.5 D5:.5 C5:.5 B4:1 G4:1 G4:1 E5:1 E5:.5 F5:.5 E5:.5 D5:.5 C5:1 A4:1 G4:.5 G4:.5 A4:1 D5:1 B4:1 C5:2 R:1 '+
-    'G4:1 C5:1 C5:.5 D5:.5 C5:.5 B4:.5 A4:1 A4:1 A4:1 D5:1 D5:.5 E5:.5 D5:.5 C5:.5 B4:1 G4:1 G4:1 E5:1 E5:.5 F5:.5 E5:.5 D5:.5 C5:1 A4:1 G4:.5 G4:.5 A4:1 D5:1 B4:1 C5:3')},
-  {name:'平安夜',beat:.36,bell:false,type:'sine',notes:seq('G4:1.5 A4:.5 G4:1 E4:3 G4:1.5 A4:.5 G4:1 E4:3 D5:2 D5:1 B4:3 C5:2 C5:1 G4:3 A4:2 A4:1 C5:1.5 B4:.5 A4:1 G4:1.5 A4:.5 G4:1 E4:3 '+
+  {name:'鈴兒響叮噹',beat:.27,bell:true,oct:1,vol:1,notes:seq(JB_V+' '+JB_CH)},
+  {name:'祝你聖誕快樂',beat:.3,bell:false,oct:1,vol:1,notes:seq(WW_V+' R:1 '+WW_R+' R:1 '+WW_V)},
+  {name:'平安夜',beat:.36,bell:false,oct:2,vol:1.25,notes:seq('G4:1.5 A4:.5 G4:1 E4:3 G4:1.5 A4:.5 G4:1 E4:3 D5:2 D5:1 B4:3 C5:2 C5:1 G4:3 A4:2 A4:1 C5:1.5 B4:.5 A4:1 G4:1.5 A4:.5 G4:1 E4:3 '+
     'A4:2 A4:1 C5:1.5 B4:.5 A4:1 G4:1.5 A4:.5 G4:1 E4:3 D5:2 D5:1 F5:1.5 D5:.5 B4:1 C5:3 E5:3 C5:1 G4:1 E4:1 G4:1.5 F4:.5 D4:1 C4:6')}
 ];
 let actx=null,mOn=false,nextT=0,si=0,mTimer=null,song=null;
 function tone(f,t,d,type,vol){const o=actx.createOscillator(),g=actx.createGain();o.type=type;o.frequency.value=f;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.012);g.gain.exponentialRampToValueAtTime(.0008,t+d);o.connect(g);g.connect(actx.destination);o.start(t);o.stop(t+d+.05);}
 function pickSong(){const pool=SONGS.filter(x=>x!==song);song=pool[(Math.random()*pool.length)|0];si=0;btnMusic.textContent='♪ '+song.name;btnMusic.setAttribute('aria-label','停止音樂（正在播放：'+song.name+'）');}
 function tick(){while(nextT<actx.currentTime+.4){const [n,b]=song.notes[si],d=b*song.beat;
-    if(n!=='R'){const f=hz(n),soft=song.type==='sine';tone(f,nextT,Math.max(d*(soft?1.05:.95),.2),song.type,soft?.2:.16);tone(f*2,nextT,soft?.5:.25,'sine',soft?.03:.05);}
+    if(n!=='R'){const f=hz(n)*song.oct,v=song.vol;tone(f,nextT,Math.max(d*.95,.2),'triangle',.16*v);tone(f,nextT,Math.max(d*.95,.2),'sine',.1*v);tone(f*2,nextT,.25,'sine',.04*v);}
     if(song.bell&&si%2===0)tone(2637,nextT,.09,'square',.012);
     nextT+=d;si++;if(si>=song.notes.length){nextT+=song.beat*3;pickSong();}}}
 btnMusic.onclick=()=>{try{if(!actx)actx=new (window.AudioContext||window.webkitAudioContext)();}catch(e){btnMusic.textContent='不支援音效';return;}
