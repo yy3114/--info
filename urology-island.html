@@ -532,21 +532,26 @@ document.addEventListener('pointerdown',()=>{try{if(!actx)actx=new (window.Audio
 let deck=[],lastGift=null;
 function drawGift(){if(!deck.length){deck=GIFTS.slice();for(let i=deck.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[deck[i],deck[j]]=[deck[j],deck[i]];}if(deck[deck.length-1]===lastGift)deck.unshift(deck.pop());}return lastGift=deck.pop();}
 const btnGift=document.getElementById('btnGift');let giftCool=0;
-btnGift.addEventListener('click',()=>{if(giftCool>0)return;giftCool=.5;const batch=[drawGift(),drawGift(),drawGift()];batch.forEach((G,i)=>setTimeout(()=>dropGift(curIsland,G),i*260));reward(curIsland,batch);});
+/* the collected reward is chosen at random among gifts not yet in this round and not given last round (remembered across visits when storage allows) */
+let lastRound=[];try{lastRound=JSON.parse(localStorage.getItem('uroGiftLastRound')||'[]');}catch(e){}
+function pickReward(){const own=collected.map(c=>c.G.t);let pool=GIFTS.filter(g=>!own.includes(g.t)&&!lastRound.includes(g.t));if(!pool.length)pool=GIFTS.filter(g=>!own.includes(g.t));return pool[(Math.random()*pool.length)|0];}
+btnGift.addEventListener('click',()=>{if(giftCool>0)return;giftCool=.5;const j=curIsland,canWin=!finaleOn&&collected.length<5&&!claimed.has(j);
+  const R=canWin?pickReward():null,batch=[];if(R)batch.push(R);while(batch.length<3){const g=drawGift();if(!batch.includes(g))batch.push(g);}
+  batch.sort(()=>Math.random()-.5).forEach((G,i)=>setTimeout(()=>dropGift(j,G),i*260));reward(j,R);});
 /* collection: one gift per island, five slots, then the finale */
 const slotEls=[...document.querySelectorAll('#slots .slot')],tmsg=document.getElementById('tmsg'),finaleEl=document.getElementById('finale');
 const collected=[],claimed=new Set();let fgifts=[];
 const setMsg=h=>{tmsg.innerHTML=h;};
 function screenOf(v3){const v=v3.clone().project(camera);return {x:Math.min(innerWidth-30,Math.max(30,(v.x+1)/2*innerWidth)),y:Math.min(innerHeight-30,Math.max(30,(1-v.y)/2*innerHeight))};}
-function reward(j,batch){if(finaleOn||collected.length>=5)return;
+function reward(j,G){if(finaleOn||collected.length>=5)return;
   if(claimed.has(j)){setMsg(ISL[j].name+'的禮物已領 · 去別的島吧 <b>'+collected.length+'/5</b>');return;}
-  const G=batch.find(g=>!collected.some(c=>c.G===g))||batch[0];claimed.add(j);collected.push({G,j});const idx=collected.length-1,slot=slotEls[idx];
+  if(!G)return;claimed.add(j);collected.push({G,j});const idx=collected.length-1,slot=slotEls[idx];
   const from=screenOf(sleigh.position),r=slot.getBoundingClientRect();
   const f=document.createElement('span');f.className='fly';f.textContent=G.em;f.style.transform='translate('+(from.x-15)+'px,'+(from.y-15)+'px) scale(1.4)';document.body.appendChild(f);
   requestAnimationFrame(()=>requestAnimationFrame(()=>{f.style.transform='translate('+(r.left+r.width/2-15)+'px,'+(r.top+r.height/2-17)+'px) scale(.85)';}));
   setTimeout(()=>{f.remove();slot.textContent=G.em;slot.style.setProperty('--c',ISL[j].color);slot.classList.add('full');slot.title=G.t+'（'+ISL[j].name+'）';slot.setAttribute('aria-label',G.t);
     const n=collected.length;setMsg('獲得「'+G.t+'」 <b>'+n+'/5</b>'+(n<5?' · 前往下一座島':''));if(n===5)setTimeout(showFinale,700);},850);}
-function showFinale(){finaleOn=true;hideGreet();finaleEl.hidden=false;requestAnimationFrame(()=>finaleEl.classList.add('on'));
+function showFinale(){finaleOn=true;lastRound=collected.map(c=>c.G.t);try{localStorage.setItem('uroGiftLastRound',JSON.stringify(lastRound));}catch(e){}hideGreet();finaleEl.hidden=false;requestAnimationFrame(()=>finaleEl.classList.add('on'));
   const cx=innerWidth/2,cy=innerHeight*.45,rx=Math.min(innerWidth*.33,340),ry=Math.min(innerHeight*.31,250);
   collected.forEach((c,i)=>{const r=slotEls[i].getBoundingClientRect(),el=document.createElement('div');el.className='fgift';el.innerHTML='<b>'+c.G.em+'</b><small>'+c.G.t+'</small>';
     el.style.left=(r.left+r.width/2)+'px';el.style.top=(r.top+r.height/2)+'px';el.style.animationDelay=(-i*.64)+'s';document.body.appendChild(el);fgifts.push(el);
