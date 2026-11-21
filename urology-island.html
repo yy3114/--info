@@ -119,7 +119,7 @@ const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').m
 const canvas=document.getElementById('stage');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
-renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputEncoding=THREE.sRGBEncoding;
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputEncoding=THREE.sRGBEncoding;renderer.localClippingEnabled=true;
 const scene=new THREE.Scene();scene.fog=new THREE.Fog(0x0d2347,70,170);
 const camera=new THREE.PerspectiveCamera(45,1,.1,400);
 const controls=new THREE.OrbitControls(camera,canvas);
@@ -180,7 +180,7 @@ ISL.forEach((s,k)=>{
 /* pines near the outer rim */
 function pines(k,angles){angles.forEach(d=>{const a=Math.atan2(C[k].z,C[k].x)+d*Math.PI/180,r=IR-1.1,t=new THREE.Group();t.position.copy(P(a,r,TOP));const s=.5+Math.random()*.25;t.scale.setScalar(s);groups[k].add(t);
   mesh(new THREE.CylinderGeometry(.12,.15,.5,6),M(0x5a3a22),0,.25,0,t);mesh(new THREE.ConeGeometry(.9,1.6,10),M(0x2a7a4b),0,1.2,0,t);mesh(new THREE.ConeGeometry(.6,1.2,10),M(0x2f8f5b),0,2.0,0,t);mesh(new THREE.ConeGeometry(.3,.45,10),snowMat,0,2.55,0,t);});}
-ISL.forEach((s,k)=>pines(k,[-62,-30,30,62]));
+ISL.forEach((s,k)=>pines(k,k===0?[]:[-62,-30,30,62]));
 
 /* ---------- Water network: tubes + peristalsis drops ---------- */
 const waterMat=M(0x7fd3ff,{roughness:.15,metalness:.1,emissive:0x0b3a5c,transparent:true,opacity:.85});
@@ -188,19 +188,17 @@ const dropMat=new THREE.MeshStandardMaterial({color:0xfff1a6,emissive:0x8a6a10,r
 const flows=[];
 function tube(pts,r,parent,nDrops,speed){const c=new THREE.CatmullRomCurve3(pts);mesh(new THREE.TubeGeometry(c,Math.max(40,pts.length*14),r,10,false),waterMat,0,0,0,parent,false);
   for(let i=0;i<nDrops;i++){const m=mesh(new THREE.SphereGeometry(r*1.25,10,8),dropMat,0,0,0,parent,false);flows.push({m,c,o:i/nDrops,s:speed});}return c;}
-/* bridges between neighbouring islands (world space) */
-for(let k=0;k<4;k++){const a=angTo(k,k+1),b=angTo(k+1,k);const A=C[k].clone().add(P(a,IR-.4,.66)),B=C[k+1].clone().add(P(b,IR-.4,.66));
-  const mid=A.clone().lerp(B,.5);mid.y=3.2;const A2=A.clone().lerp(B,.2);A2.y=2.2;const B2=A.clone().lerp(B,.8);B2.y=2.2;
-  tube([A,A2,mid,B2,B],.3,scene,9,.09);
-  /* candy-cane posts at both ends */
-  [A,B].forEach(p=>{const post=new THREE.Group();post.position.set(p.x,TOP,p.z);scene.add(post);for(let i=0;i<5;i++)mesh(new THREE.CylinderGeometry(.11,.11,.28,10),M(i%2?0xffffff:0xc8323c),0,.14+i*.28,0,post);});
+/* bridges between neighbouring islands (world space); kidney→ureter→bladder are paired (left + right ureter) */
+const BR=[];const loc=(k,v)=>v.clone().sub(C[k]);
+for(let k=0;k<4;k++){const a=angTo(k,k+1),b=angTo(k+1,k);const A0=C[k].clone().add(P(a,IR-.4,.66)),B0=C[k+1].clone().add(P(b,IR-.4,.66));
+  const D=B0.clone().sub(A0),N=V(-D.z,0,D.x).normalize(),sides=k<2?[-.75,.75]:[0];BR[k]={A:{},B:{},N};
+  sides.forEach(sd=>{const A=A0.clone().addScaledVector(N,sd),B=B0.clone().addScaledVector(N,sd);BR[k].A[sd]=A;BR[k].B[sd]=B;
+    const mid=A.clone().lerp(B,.5);mid.y=3.2;const A2=A.clone().lerp(B,.2);A2.y=2.2;const B2=A.clone().lerp(B,.8);B2.y=2.2;
+    tube([A,A2,mid,B2,B],k<2?.22:.3,scene,k<2?7:9,.09);});
+  /* candy-cane posts beside each bridge end */
+  const po=k<2?1.45:.8;[A0,B0].forEach(p=>[-po,po].forEach(o=>{const q=p.clone().addScaledVector(N,o);const post=new THREE.Group();post.position.set(q.x,TOP,q.z);scene.add(post);for(let i=0;i<5;i++)mesh(new THREE.CylinderGeometry(.11,.11,.28,10),M(i%2?0xffffff:0xc8323c),0,.14+i*.28,0,post);}));
 }
-/* closing garland urethra → kidney (lights only, Santa's way home) */
-(function(){const a=angTo(4,0),b=angTo(0,4);const A=C[4].clone().add(P(a,IR-.3,1.4)),B=C[0].clone().add(P(b,IR-.3,1.4));
-  const cols=[0xff4d4d,0xf2c14e,0x6cd3ff,0x9dff8a];for(let i=0;i<=30;i++){const u=i/30,p=A.clone().lerp(B,u);p.y-=Math.sin(u*Math.PI)*1.6;const mm=new THREE.MeshStandardMaterial({color:cols[i%4],emissive:cols[i%4],emissiveIntensity:1});mesh(new THREE.SphereGeometry(.14,8,6),mm,p.x,p.y,p.z,scene,false);}
-  const ln=new THREE.Line(new THREE.BufferGeometry().setFromPoints(Array.from({length:31},(_,i)=>{const u=i/30,p=A.clone().lerp(B,u);p.y-=Math.sin(u*Math.PI)*1.6;return p;})),new THREE.LineBasicMaterial({color:0x2a5a3a}));scene.add(ln);})();
-
-const twinkles=[],smokes=[],legs=[],spinners=[];
+const updaters=[],twinkles=[],smokes=[],legs=[],spinners=[];
 /* reindeer builder (used by sleigh and bladder island) */
 function reindeer(parent,x,y,z,rudolph,animate){
   const g=new THREE.Group();g.position.set(x,y,z);parent.add(g);const fur=M(0x8b5a2b,{roughness:.9});
@@ -221,20 +219,24 @@ function sign(parent,x,z,text,color){const g=new THREE.Group();g.position.set(x,
   const kidMat=M(0x9b3a3f,{roughness:.55,metalness:.05});
   /* kidneys stand side by side, facing outward-ish, hila toward each other */
   const holder=new THREE.Group();holder.position.set(0,0,0);holder.rotation.y=-(away+Math.PI/2)+Math.PI;g.add(holder);
-  [-1,1].forEach(sd=>{const kg=new THREE.Group();kg.position.set(sd*1.9,2.05,0);kg.scale.setScalar(.8);holder.add(kg);
+  [-1,1].forEach(sd=>{const kg=new THREE.Group();kg.position.set(sd*2.55,2.45,0);kg.scale.setScalar(1.15);holder.add(kg);
     const kk=mesh(new THREE.TorusGeometry(1.0,.86,22,44,Math.PI*1.25),kidMat,0,0,0,kg);kk.rotation.z=(sd<0?0:Math.PI)-Math.PI*1.625;
     const hat=new THREE.Group();hat.position.set(0,1.72,0);hat.rotation.z=-sd*.35;kg.add(hat);
     mesh(new THREE.ConeGeometry(.52,1.05,20),M(0xc8323c,{roughness:.6}),0,.55,0,hat);const br=mesh(new THREE.TorusGeometry(.5,.13,10,24),snowMat,0,.03,0,hat);br.rotation.x=Math.PI/2;mesh(new THREE.SphereGeometry(.17,12,10),snowMat,0,1.1,0,hat);});
   /* ureter leaving the twin kidneys toward the ureter island */
-  const start=V(0,.66,0);tube([V(0,1.3,0).applyAxisAngle(V(0,1,0),0),start,P(out,2.5,.66),P(out,IR-.4,.66)],.2,g,5,.12);
+  holder.updateMatrix();const nn=BR[0].N;
+  [-1,1].forEach(sd=>{const T_=v=>v.applyMatrix4(holder.matrix);const hil=T_(V(sd*1.45,2.35,0)),mid=T_(V(sd*1.05,1.3,.2)),foot=T_(V(sd*.9,.66,.6));
+    const side=Math.sign(foot.dot(nn))*.75||.75;const end=loc(0,BR[0].A[side]);const via=P(out,3.4,.66).addScaledVector(nn,side);
+    tube([hil,mid,foot,via,end],.2,g,5,.12);});
+  label('左右輸尿管出發',g,0,1.6,0,.45,'#5cc4ff');
   /* Christmas tree on one side */
-  const tg=new THREE.Group();tg.position.copy(P(away+1.15,3.6,TOP));tg.scale.setScalar(.62);g.add(tg);
+  const tg=new THREE.Group();tg.position.copy(P(away+.75,4.6,TOP));tg.scale.setScalar(.62);g.add(tg);
   mesh(new THREE.CylinderGeometry(.3,.38,1,10),M(0x5a3a22),0,.5,0,tg);[[2.3,2.2,1.7],[1.8,1.9,2.9],[1.25,1.6,4.0]].forEach(([r,h,y])=>mesh(new THREE.ConeGeometry(r,h,18),M(0x1f6b3a,{roughness:.85}),0,y,0,tg));
   const cols=[0xff4d4d,0xf2c14e,0x6cd3ff,0xff8ad8,0x9dff8a];for(let i=0;i<28;i++){const t=i/28,y=1.1+t*3.6,r=(2.2-t*1.8)*.92,a=i*2.4;const mm=new THREE.MeshStandardMaterial({color:cols[i%5],emissive:cols[i%5],emissiveIntensity:.9});twinkles.push({m:mm,i});mesh(new THREE.SphereGeometry(.12,8,6),mm,Math.cos(a)*r,y,Math.sin(a)*r,tg,false);}
   const sh=new THREE.Shape();for(let i=0;i<10;i++){const r=i%2?.22:.5,a=i/10*Math.PI*2+Math.PI/2;i?sh.lineTo(Math.cos(a)*r,Math.sin(a)*r):sh.moveTo(Math.cos(a)*r,Math.sin(a)*r);}
   spinners.push(mesh(new THREE.ExtrudeGeometry(sh,{depth:.14,bevelEnabled:false}),new THREE.MeshStandardMaterial({color:0xffd75e,emissive:0xffb800,emissiveIntensity:1.2}),0,5.2,0,tg,false));
   /* Christmas dinner table with roast turkey */
-  const dg=new THREE.Group();dg.position.copy(P(away-1.1,3.4,TOP));g.add(dg);
+  const dg=new THREE.Group();dg.position.copy(P(away-.75,4.6,TOP));g.add(dg);
   mesh(new THREE.BoxGeometry(1.8,.12,1.1),M(0xc8323c),0,.75,0,dg);[[-.75,-.4],[.75,-.4],[-.75,.4],[.75,.4]].forEach(([x,z])=>mesh(new THREE.CylinderGeometry(.05,.05,.75,6),M(0x5a3a22),x,.37,z,dg));
   mesh(new THREE.CylinderGeometry(.42,.42,.04,20),M(0xffffff),0,.83,0,dg);const tk=mesh(new THREE.SphereGeometry(.32,16,12),M(0xb5651d,{roughness:.5}),0,1.0,0,dg);tk.scale.set(1.2,.8,1);
   [-1,1].forEach(s=>{const l=mesh(new THREE.CylinderGeometry(.06,.1,.3,8),M(0xa0521a),s*.3,1.05,.2,dg);l.rotation.x=-.8;mesh(new THREE.SphereGeometry(.06,8,6),M(0xffffff),s*.34,1.15,.33,dg,false);});
@@ -250,11 +252,11 @@ function sign(parent,x,z,text,color){const g=new THREE.Group();g.position.set(x,
 
 /* ---------- 1 輸尿管島 ---------- */
 (function(){const k=1,g=groups[k],ain=angTo(1,0),aout=angTo(1,2),away=Math.atan2(C[k].z,C[k].x);
-  /* winding ureter river with three narrowings (UPJ, iliac crossing, UVJ) */
-  const A=P(ain,IR-.4,.66),B=P(aout,IR-.4,.66);
-  const pts=[A];for(let i=1;i<6;i++){const u=i/6,p=A.clone().lerp(B,u);const n=V(-(B.z-A.z),0,B.x-A.x).normalize();p.addScaledVector(n,Math.sin(u*Math.PI*2)*1.6);pts.push(p);}pts.push(B);
-  tube(pts,.24,g,8,.1);
-  label('輸尿管河（蠕動中）',g,0,2.2,0,.5,'#5cc4ff');
+  /* two gently curved ureters, left and right */
+  [-.75,.75].forEach(sd=>{const A=loc(1,BR[0].B[sd]),B=loc(1,BR[1].A[sd]);const mid=A.clone().lerp(B,.5),bow=V(-mid.x,0,-mid.z).normalize();
+    const q=(u,b)=>A.clone().lerp(B,u).addScaledVector(bow,b).setY(.66);
+    tube([A,q(.25,.7),q(.5,1.05),q(.75,.7),B],.22,g,6,.1);});
+  label('雙輸尿管（蠕動中）',g,0,2.2,0,.5,'#5cc4ff');
   /* chimney house */
   const hg=new THREE.Group();hg.position.copy(P(away,3.3,TOP));hg.rotation.y=-away+Math.PI/2;g.add(hg);
   mesh(new THREE.BoxGeometry(2.6,1.8,2.1),M(0x8a5233,{roughness:.9}),0,.9,0,hg);
@@ -270,29 +272,40 @@ function sign(parent,x,z,text,color){const g=new THREE.Group();g.position.set(x,
 
 /* ---------- 2 膀胱島 ---------- */
 (function(){const k=2,g=groups[k],ain=angTo(2,1),aout=angTo(2,3),away=Math.atan2(C[k].z,C[k].x);
-  const lake=V(0,0,0);
-  mesh(new THREE.CylinderGeometry(2.6,2.6,.08,48),M(0x6cc6f5,{roughness:.08,metalness:.2,emissive:0x0a3352}),0,.63,0,g,false);
-  const rim=mesh(new THREE.TorusGeometry(2.65,.18,10,56),snowMat,0,.62,0,g);rim.rotation.x=Math.PI/2;
-  tube([P(ain,IR-.4,.66),P(ain,3.6,.66),P(ain,2.3,.66)],.22,g,3,.18);
-  tube([P(aout,2.3,.66),P(aout,3.6,.66),P(aout,IR-.4,.66)],.22,g,3,.18);
-  label('膀胱湖 · 容量 400 mL',g,0,1.9,0,.55,'#f2c14e');
+  /* 3D bladder: lathe profile, neck at the floor, dome on top; urine level fills and voids */
+  const prof=[[.3,0],[.55,.3],[1.4,.9],[2.1,1.8],[2.3,2.6],[2.1,3.4],[1.5,4.0],[.7,4.35],[.01,4.45]];
+  const wall=mesh(new THREE.LatheGeometry(prof.map(([r,y])=>new THREE.Vector2(r,y)),48),new THREE.MeshStandardMaterial({color:0xf2a0b2,transparent:true,opacity:.52,roughness:.3,side:THREE.DoubleSide,depthWrite:false}),0,TOP,0,g,false);wall.renderOrder=3;
+  const clip=new THREE.Plane(V(0,-1,0),2);
+  const fluid=mesh(new THREE.LatheGeometry(prof.map(([r,y])=>new THREE.Vector2(r*.93,y)),48),new THREE.MeshStandardMaterial({color:0xf7d34a,emissive:0x5a4200,transparent:true,opacity:.8,roughness:.2,clippingPlanes:[clip],side:THREE.DoubleSide}),0,TOP,0,g,false);fluid.renderOrder=2;
+  const surf=mesh(new THREE.CircleGeometry(1,40),new THREE.MeshStandardMaterial({color:0xffe27a,emissive:0x6a5000,transparent:true,opacity:.9,roughness:.1}),0,0,0,g,false);surf.rotation.x=-Math.PI/2;surf.renderOrder=2;
+  const rAt=y=>{for(let i=1;i<prof.length;i++)if(y<=prof[i][1]){const [r0,y0]=prof[i-1],[r1,y1]=prof[i];return r0+(r1-r0)*(y-y0)/(y1-y0);}return 0;};
+  updaters.push(T=>{const fill=.55+.4*Math.sin(T*.45),ly=.35+fill*3.6;clip.constant=TOP+ly;surf.position.y=TOP+ly;surf.scale.setScalar(rAt(ly)*.93);});
+  /* ureters enter the posterolateral base (trigone side) */
+  [-.75,.75].forEach(sd=>{const E=loc(2,BR[1].B[sd]);let df=Math.atan2(E.z,E.x)-ain;df=Math.atan2(Math.sin(df),Math.cos(df));const ea=ain+Math.sign(df)*.55;
+    const en=P(ea,1.6,TOP+1.15),via=E.clone().lerp(en,.55);via.y=.9;tube([E,via,en],.2,g,4,.16);});
+  tube([V(0,.66,0),P(aout,2.6,.66),loc(2,BR[2].A[0])],.22,g,4,.18);
+  label('膀胱 · 容量 400 mL',g,0,5.9,0,.55,'#f2c14e');
   /* reindeer statue at the lakeside, Rudolph-style */
-  const rp=P(away,3.9,TOP+1.25);const rd=reindeer(g,rp.x,rp.y,rp.z,true,false);rd.scale.setScalar(1.6);rd.rotation.y=-away-Math.PI/2+Math.PI;
+  const rp=P(away,4.6,TOP+1.25);const rd=reindeer(g,rp.x,rp.y,rp.z,true,false);rd.scale.setScalar(1.6);rd.rotation.y=-away-Math.PI/2+Math.PI;
   /* a few skating snowmen dots: little ice skater */
   label('紅鼻麋鹿報到處',g,rp.x,4.2,rp.z,.48,'#e0505a');
 })();
 
 /* ---------- 3 攝護腺島 ---------- */
 (function(){const k=3,g=groups[k],ain=angTo(3,2),aout=angTo(3,4),away=Math.atan2(C[k].z,C[k].x);
-  const hill=mesh(new THREE.SphereGeometry(1,40,28),M(0xc98b5e,{roughness:.7}),0,TOP,0,g);hill.scale.set(2.3,1.5,1.8);
-  /* midline sulcus groove hint */
-  const gr=mesh(new THREE.TorusGeometry(1.5,.06,6,40,Math.PI),M(0xa86f45),0,TOP,0,g,false);gr.rotation.y=Math.PI/2;
-  tube([P(ain,IR-.4,.66),P(ain,2.6,.66),V(0,.8,0),P(aout,2.6,.66),P(aout,IR-.4,.66)],.2,g,6,.12);
-  /* big star on top (天增歲月) */
+  /* chestnut-shaped prostate: broad pale base, glossy brown body, pointed apex */
+  const cp_=[[.01,0],[1.3,.02],[1.9,.35],[2.05,.9],[1.9,1.6],[1.45,2.3],[.8,2.85],[.28,3.15],[.06,3.35],[.01,3.4]];
+  const cgeo=new THREE.LatheGeometry(cp_.map(([r,y])=>new THREE.Vector2(r,y)),48),pa=cgeo.attributes.position,col=new Float32Array(pa.count*3);
+  for(let i=0;i<pa.count;i++){const y=pa.getY(i),t=Math.min(1,Math.max(0,(y-.45)/.3));col[i*3]=.62+(.3-.62)*t;col[i*3+1]=.47+(.12-.47)*t;col[i*3+2]=.3+(.04-.3)*t;}
+  cgeo.setAttribute('color',new THREE.BufferAttribute(col,3));
+  const nut=mesh(cgeo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.3,metalness:.08}),0,TOP,0,g);nut.scale.z=.78;nut.rotation.y=-aout;
+  mesh(new THREE.ConeGeometry(.08,.35,8),M(0xd9c39a),0,TOP+3.55,0,g,false);
+  tube([loc(3,BR[2].B[0]),P(ain,2.6,.66),V(0,.8,0),P(aout,2.6,.66),loc(3,BR[3].A[0])],.2,g,6,.12);
+  /* big star above the apex (天增歲月) */
   const sh=new THREE.Shape();for(let i=0;i<10;i++){const r=i%2?.4:.95,a=i/10*Math.PI*2+Math.PI/2;i?sh.lineTo(Math.cos(a)*r,Math.sin(a)*r):sh.moveTo(Math.cos(a)*r,Math.sin(a)*r);}
-  spinners.push(mesh(new THREE.ExtrudeGeometry(sh,{depth:.22,bevelEnabled:false}),new THREE.MeshStandardMaterial({color:0xffd75e,emissive:0xffb800,emissiveIntensity:1.3}),0,3.6,0,g,false));
-  const pl=new THREE.PointLight(0xffd27a,1.1,9);pl.position.set(0,3.6,0);g.add(pl);
-  label('攝護腺丘 · 20 g 不增生',g,0,5.0,0,.55,'#b48cff');
+  spinners.push(mesh(new THREE.ExtrudeGeometry(sh,{depth:.22,bevelEnabled:false}),new THREE.MeshStandardMaterial({color:0xffd75e,emissive:0xffb800,emissiveIntensity:1.3}),0,5.0,0,g,false));
+  const pl=new THREE.PointLight(0xffd27a,1.1,9);pl.position.set(0,5,0);g.add(pl);
+  label('攝護腺栗子 · 20 g 不增生',g,0,6.4,0,.55,'#b48cff');
   /* calendar sign: 2026 → 2027 */
   const cp=P(away,4.2,TOP);const cg=new THREE.Group();cg.position.copy(cp);cg.rotation.y=-away+Math.PI/2;g.add(cg);
   mesh(new THREE.BoxGeometry(1.1,1.2,.12),M(0xffffff),0,1.3,0,cg);mesh(new THREE.BoxGeometry(1.1,.3,.14),M(0xc8323c),0,1.8,0,cg);[-.3,.3].forEach(x=>mesh(new THREE.CylinderGeometry(.04,.04,1.3,6),M(0x6b4a33),x,.6,0,cg));
@@ -302,12 +315,14 @@ function sign(parent,x,z,text,color){const g=new THREE.Group();g.position.set(x,
 /* ---------- 4 尿道島 ---------- */
 let wfOrigin,wfDir;
 (function(){const k=4,g=groups[k],ain=angTo(4,3),aout=ain+Math.PI,side=ain+Math.PI/2;
-  tube([P(ain,IR-.4,.66),P(ain,2.5,.66),V(0,.66,0),P(aout,2.5,.66),P(aout,IR-.2,.66),P(aout,IR+.1,.45)],.2,g,7,.14);
+  /* urethra: a thicker water pipe with metal couplings */
+  const uc=tube([loc(4,BR[3].B[0]),P(ain,2.5,.85),V(0,.85,0),P(aout,2.5,.85),P(aout,IR-.2,.8),P(aout,IR+.1,.55)],.42,g,7,.14);
+  const cm=M(0xb8c4d6,{metalness:.65,roughness:.3});[.12,.3,.7,.86].forEach(u=>{const p=uc.getPointAt(u),t=uc.getTangentAt(u);const r=mesh(new THREE.TorusGeometry(.47,.09,8,20),cm,p.x,p.y,p.z,g);r.lookAt(p.clone().add(t));});
   /* sphincter arch gate */
   const arch=new THREE.Group();arch.rotation.y=-aout+Math.PI/2;g.add(arch);
   const ar=mesh(new THREE.TorusGeometry(1.3,.26,14,40),M(0xd98c8c,{roughness:.55}),0,TOP+.2,0,arch);
   for(let i=0;i<12;i++){const a=i/12*Math.PI*2;const mm=new THREE.MeshStandardMaterial({color:0x4fd08a,emissive:0x4fd08a,emissiveIntensity:1});twinkles.push({m:mm,i:i+40});mesh(new THREE.SphereGeometry(.1,8,6),mm,Math.cos(a)*1.3,TOP+.2+Math.sin(a)*1.3,0,arch,false);}
-  label('括約肌拱門 · 收放自如',g,0,3.2,0,.5,'#4fd08a');
+  label('尿道水管 · 括約肌拱門',g,0,3.2,0,.5,'#4fd08a');
   /* gift pile */
   const gp=new THREE.Group();gp.position.copy(P(side,3.2,TOP));g.add(gp);
   [[0,0,0xc8323c,0xf2c14e,.8],[.9,.3,0x2f8f5b,0xf3f7ff,.6],[-.7,.5,0x3a6fd8,0xf2c14e,.55],[.2,-.8,0xf2c14e,0xc8323c,.65],[.1,.1,0xb48cff,0xffffff,.45,.8]].forEach(([x,z,c,rb,s,y])=>{const b=new THREE.Group();b.position.set(x,(y||0)+s/2,z);b.rotation.y=Math.random();gp.add(b);mesh(new THREE.BoxGeometry(s,s,s),M(c,{roughness:.5}),0,0,0,b);mesh(new THREE.BoxGeometry(s*1.02,s*1.02,s*.16),M(rb),0,0,0,b,false);mesh(new THREE.BoxGeometry(s*.16,s*1.02,s*1.02),M(rb),0,0,0,b,false);});
@@ -317,12 +332,12 @@ let wfOrigin,wfDir;
   mesh(new THREE.SphereGeometry(.6,18,14),snowMat,0,.5,0,sm);mesh(new THREE.SphereGeometry(.42,18,14),snowMat,0,1.25,0,sm);mesh(new THREE.SphereGeometry(.3,16,12),snowMat,0,1.82,0,sm);
   const n=mesh(new THREE.ConeGeometry(.06,.35,8),M(0xff8a2b),0,1.82,.42,sm);n.rotation.x=Math.PI/2;const sc=mesh(new THREE.TorusGeometry(.3,.08,8,20),M(0xc8323c),0,1.55,0,sm);sc.rotation.x=Math.PI/2;
   [-.1,.1].forEach(x=>mesh(new THREE.SphereGeometry(.04,8,6),M(0x111111),x,1.9,.27,sm,false));
-  wfOrigin=C[4].clone().add(P(aout,IR+.15,.4));wfDir=V(Math.cos(aout),0,Math.sin(aout));
+  wfOrigin=C[4].clone().add(P(aout,IR+.15,.5));wfDir=V(Math.cos(aout),0,Math.sin(aout));
   label('尿道瀑布 · 一路通',scene,wfOrigin.x,2.1,wfOrigin.z,.5,'#5cc4ff');
 })();
 /* waterfall particles (world) */
 const WF=320,wfPos=new Float32Array(WF*3),wfVel=new Float32Array(WF*3);
-function wfReset(i){const sp=(Math.random()-.5)*.35;wfPos[i*3]=wfOrigin.x-wfDir.z*sp;wfPos[i*3+1]=wfOrigin.y;wfPos[i*3+2]=wfOrigin.z+wfDir.x*sp;const v=.9+Math.random()*.6;wfVel[i*3]=wfDir.x*v;wfVel[i*3+1]=Math.random()*.3;wfVel[i*3+2]=wfDir.z*v;}
+function wfReset(i){const sp=(Math.random()-.5)*.7;wfPos[i*3]=wfOrigin.x-wfDir.z*sp;wfPos[i*3+1]=wfOrigin.y;wfPos[i*3+2]=wfOrigin.z+wfDir.x*sp;const v=.9+Math.random()*.6;wfVel[i*3]=wfDir.x*v;wfVel[i*3+1]=Math.random()*.3;wfVel[i*3+2]=wfDir.z*v;}
 for(let i=0;i<WF;i++){wfReset(i);const t=Math.random()*1.4;wfPos[i*3]+=wfVel[i*3]*t;wfPos[i*3+2]+=wfVel[i*3+2]*t;wfPos[i*3+1]-=4.9*t*t;wfVel[i*3+1]-=9.8*t;}
 const wfGeo=new THREE.BufferGeometry();wfGeo.setAttribute('position',new THREE.BufferAttribute(wfPos,3));
 scene.add(new THREE.Points(wfGeo,new THREE.PointsMaterial({size:.3,map:DOT,color:0x9fe0ff,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending})));
@@ -496,7 +511,7 @@ function animate(){
   wfGeo.attributes.position.needsUpdate=true;
   smokes.forEach(s=>{const u=(T*.18+s.o)%1;s.m.position.set(.7+Math.sin(u*6+s.o*9)*.25*u,3.8+u*3.2,-.35+u*.6);s.m.scale.setScalar(.6+u*2.2);s.m.material.opacity=.55*(1-u);});
   twinkles.forEach(t=>{if(t.m)t.m.emissiveIntensity=.4+Math.max(0,Math.sin(T*3+t.i*1.7))*1.4;else{const s=.8+Math.sin(T*6)*.25;t.glow.scale.set(s,s,1);}});
-  spinners.forEach(s=>s.rotation.y=T*.8);
+  spinners.forEach(s=>s.rotation.y=T*.8);updaters.forEach(f=>f(T,dt));
   garlands.forEach((g,i)=>g.emissiveIntensity=i===curIsland?1.2+Math.sin(T*5)*.6:.35);
   nameTags.forEach((n,i)=>{const b=n.userData.base||(n.userData.base=n.scale.clone());const k=i===curIsland?1.15+Math.sin(T*3)*.05:1;n.scale.set(b.x*k,b.y*k,1);});
   if(!engaged())tourStep(dt);gameStep(dt);controls.autoRotate=userSpin&&!engaged();
